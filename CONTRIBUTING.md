@@ -34,7 +34,7 @@ Feature requests are welcome! Please provide:
 
 1. **Clone your fork**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/bhumitra.git
+   git clone https://github.com/ak0586/bhumitra.git
    cd bhumitra
    ```
 
