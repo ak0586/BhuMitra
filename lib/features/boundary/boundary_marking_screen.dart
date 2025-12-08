@@ -1,0 +1,655 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:go_router/go_router.dart';
+import '../../core/providers.dart';
+import '../../core/area_calculator.dart';
+import '../../core/location_helper.dart';
+import '../../core/preferences.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+
+class BoundaryMarkingScreen extends ConsumerStatefulWidget {
+  const BoundaryMarkingScreen({super.key});
+
+  @override
+  ConsumerState<BoundaryMarkingScreen> createState() =>
+      _BoundaryMarkingScreenState();
+}
+
+class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
+    with TickerProviderStateMixin {
+  final MapController _mapController = MapController();
+
+  StreamSubscription<Position>? _userLocationSubscription;
+  LatLng? _userLocation;
+  bool _isMapReady = false;
+
+  // Map tile URLs for different types
+  final Map<String, String> _mapTileUrls = {
+    'Normal': 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    'Satellite':
+        'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', // Changed to Hybrid (y) for labels
+    'Terrain': 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    // Delay to ensure widget tree is built
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        setState(() {
+          _isMapReady = true;
+        });
+        _startUserLocationTracking();
+      }
+    });
+  }
+
+  void _startUserLocationTracking() async {
+    final status = await LocationHelper.requestLocationPermission();
+    if (status == LocationPermissionStatus.granted) {
+      // Get initial position and move map
+      final position = await LocationHelper.getCurrentPosition();
+      if (position != null && mounted) {
+        _mapController.move(
+          LatLng(position.latitude, position.longitude),
+          17.0,
+        );
+      }
+
+      _userLocationSubscription = LocationHelper.getPositionStream().listen((
+        position,
+      ) {
+        if (mounted) {
+          setState(() {
+            _userLocation = LatLng(position.latitude, position.longitude);
+          });
+        }
+      });
+    }
+  }
+
+  void _handleMapTap(LatLng position) {
+    // Pin mode only - add point on tap
+    ref
+        .read(boundaryPointsProvider.notifier)
+        .addPoint(position.latitude, position.longitude);
+  }
+
+  void _calculateArea() {
+    try {
+      final points = ref.read(boundaryPointsProvider.notifier).toLatLngList();
+
+      if (points.length < 3) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Need at least 3 points to calculate area'),
+          ),
+        );
+        return;
+      }
+
+      // Calculate area using turf
+      final areaInSqM = AreaCalculator.calculateAreaInSquareMeters(points);
+
+      if (areaInSqM == 0.0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error calculating area. Please try again.'),
+          ),
+        );
+        return;
+      }
+
+      // Create area result
+      final coordinates = points.map((p) => [p.latitude, p.longitude]).toList();
+      final areaResult = AreaResult.fromSquareMeters(areaInSqM, coordinates);
+
+      // Save to provider
+      ref.read(areaResultProvider.notifier).state = areaResult;
+
+      // Navigate to result screen
+      context.push('/result');
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+    }
+  }
+
+  bool _isLocating = false;
+
+  void _animatedMapMove(LatLng destLocation, double destZoom) {
+    // Create some tween animations to move the map gracefully
+    final latTween = Tween<double>(
+      begin: _mapController.camera.center.latitude,
+      end: destLocation.latitude,
+    );
+    final lngTween = Tween<double>(
+      begin: _mapController.camera.center.longitude,
+      end: destLocation.longitude,
+    );
+    final zoomTween = Tween<double>(
+      begin: _mapController.camera.zoom,
+      end: destZoom,
+    );
+
+    final controller = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+
+    final Animation<double> animation = CurvedAnimation(
+      parent: controller,
+      curve: Curves.fastOutSlowIn,
+    );
+
+    controller.addListener(() {
+      _mapController.move(
+        LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
+        zoomTween.evaluate(animation),
+      );
+    });
+
+    animation.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        controller.dispose();
+      }
+    });
+
+    controller.forward();
+  }
+
+  Future<void> _recenterMap() async {
+    setState(() {
+      _isLocating = true;
+    });
+
+    final status = await LocationHelper.requestLocationPermission();
+    if (status == LocationPermissionStatus.granted) {
+      try {
+        final position = await Geolocator.getCurrentPosition();
+        if (mounted) {
+          _animatedMapMove(LatLng(position.latitude, position.longitude), 17.0);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not get current location')),
+          );
+        }
+      }
+    } else {
+      // Handle other statuses if needed, or let HomeScreen handle the initial request
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location permission required')),
+        );
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLocating = false;
+      });
+    }
+  }
+
+  final TextEditingController _searchController = TextEditingController();
+
+  Future<void> _searchLocation(String query) async {
+    if (query.isEmpty) return;
+    try {
+      List<Location> locations = await locationFromAddress(query);
+      if (locations.isNotEmpty && mounted) {
+        final loc = locations.first;
+        _animatedMapMove(LatLng(loc.latitude, loc.longitude), 16.0);
+        // Clear focus
+        FocusScope.of(context).unfocus();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Location not found')));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error searching location')),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    _userLocationSubscription?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final points = ref.watch(boundaryPointsProvider);
+    final mapType = ref.watch(mapTypeProvider);
+    final latLngPoints = points
+        .map((p) => LatLng(p.latitude, p.longitude))
+        .toList();
+
+    // Show loading while map initializes
+    if (!_isMapReady) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
+        ),
+      );
+    }
+
+    return Scaffold(
+      resizeToAvoidBottomInset: false, // Prevent map resize on keyboard
+      body: Stack(
+        children: [
+          // Map
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: const LatLng(26.8467, 80.9462), // Lucknow
+              initialZoom: 15.0,
+              onTap: (_, position) => _handleMapTap(position),
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: _mapTileUrls[mapType] ?? _mapTileUrls['Normal']!,
+                userAgentPackageName: 'com.bhumitra.app',
+              ),
+
+              // Polygon overlay
+              if (latLngPoints.length > 2)
+                PolygonLayer(
+                  polygons: [
+                    Polygon(
+                      points: latLngPoints,
+                      color: const Color(0xFF66BB6A).withOpacity(0.3),
+                      borderColor: const Color(0xFF2E7D32),
+                      borderStrokeWidth: 2,
+                    ),
+                  ],
+                ),
+
+              // User Location Marker (Blue Dot)
+              if (_userLocation != null)
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: _userLocation!,
+                      width: 24,
+                      height: 24,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.3),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Container(
+                            width: 14,
+                            height: 14,
+                            decoration: const BoxDecoration(
+                              color: Colors.blue,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(color: Colors.black26, blurRadius: 4),
+                              ],
+                            ),
+                            child: Center(
+                              child: Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+              // Markers for points
+              MarkerLayer(
+                markers: points.map((point) {
+                  return Marker(
+                    point: LatLng(point.latitude, point.longitude),
+                    width: 24,
+                    height: 24,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF3B30),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+
+          // Top Bar with Search
+          _buildTopBar(context),
+
+          // Map Type Dropdown (Top Right)
+          _buildMapTypeDropdown(),
+
+          // Recenter Button
+          Positioned(
+            right: 16,
+            bottom: 195, // Above zoom controls
+            child: FloatingActionButton(
+              heroTag: 'recenter',
+              onPressed: _isLocating ? null : _recenterMap,
+              backgroundColor: Colors.white,
+              child: _isLocating
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Color(0xFF2E7D32),
+                      ),
+                    )
+                  : const Icon(Icons.my_location, color: Color(0xFF2E7D32)),
+            ),
+          ),
+
+          // Zoom In Button
+          Positioned(
+            right: 16,
+            bottom: 140,
+            child: FloatingActionButton(
+              heroTag: 'zoom_in',
+              mini: true,
+              onPressed: () {
+                final currentZoom = _mapController.camera.zoom;
+                _mapController.move(
+                  _mapController.camera.center,
+                  currentZoom + 1,
+                );
+              },
+              backgroundColor: Colors.white,
+              child: const Icon(Icons.add, color: Color(0xFF2E7D32)),
+            ),
+          ),
+
+          // Zoom Out Button
+          Positioned(
+            right: 16,
+            bottom: 90,
+            child: FloatingActionButton(
+              heroTag: 'zoom_out',
+              mini: true,
+              onPressed: () {
+                final currentZoom = _mapController.camera.zoom;
+                _mapController.move(
+                  _mapController.camera.center,
+                  currentZoom - 1,
+                );
+              },
+              backgroundColor: Colors.white,
+              child: const Icon(Icons.remove, color: Color(0xFF2E7D32)),
+            ),
+          ),
+
+          // Pin Mode Label
+          _buildModeLabel(),
+
+          // Mode Controls
+          _buildModeControls(points.length),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopBar(BuildContext context) {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.black.withOpacity(0.6), Colors.transparent],
+          ),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      color: Color(0xFF2E7D32),
+                    ),
+                    onPressed: () => context.pop(),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: _searchLocation,
+                      decoration: InputDecoration(
+                        hintText: 'Search location...',
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: Colors.grey,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.clear, color: Colors.grey),
+                          onPressed: () {
+                            _searchController.clear();
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMapTypeDropdown() {
+    final mapType = ref.watch(mapTypeProvider);
+
+    return Positioned(
+      top: 120,
+      right: 16,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: mapType,
+            icon: const Icon(Icons.layers, color: Color(0xFF2E7D32)),
+            items: ['Normal', 'Satellite', 'Terrain']
+                .map(
+                  (type) => DropdownMenuItem(
+                    value: type,
+                    child: Text(
+                      type,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) async {
+              if (value != null) {
+                await ref.read(mapTypeProvider.notifier).setMapType(value);
+              }
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Pin mode only - walking mode removed
+  Widget _buildModeLabel() {
+    return Positioned(
+      top: 120,
+      left: 16,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.push_pin, color: Color(0xFF2E7D32), size: 20),
+            SizedBox(width: 8),
+            Text('Pin Mode', style: TextStyle(fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Only pin mode controls
+  Widget _buildModeControls(int pointCount) {
+    return _buildPinControls(pointCount);
+  }
+
+  Widget _buildPinControls(int pointCount) {
+    return Positioned(
+      bottom: 25,
+      right: 16,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Point Counter
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8),
+              ],
+            ),
+            child: Text(
+              '$pointCount point${pointCount != 1 ? 's' : ''}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Undo Button
+          FloatingActionButton.small(
+            heroTag: 'undo',
+            onPressed: pointCount > 0
+                ? () => ref
+                      .read(boundaryPointsProvider.notifier)
+                      .removeLastPoint()
+                : null,
+            backgroundColor: Colors.white,
+            child: const Icon(Icons.undo, color: Color(0xFF2E7D32)),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Clear Button
+          FloatingActionButton.small(
+            heroTag: 'clear',
+            onPressed: pointCount > 0
+                ? () => ref.read(boundaryPointsProvider.notifier).clearPoints()
+                : null,
+            backgroundColor: Colors.white,
+            child: const Icon(Icons.clear, color: Colors.red),
+          ),
+
+          const SizedBox(height: 12, width: 18),
+
+          // Calculate Button
+          FloatingActionButton.extended(
+            heroTag: 'calculate',
+            onPressed: pointCount >= 3 ? _calculateArea : null,
+            backgroundColor: const Color(0xFF2E7D32),
+            icon: const Icon(Icons.calculate),
+            label: const Text(
+              'Calculate',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
