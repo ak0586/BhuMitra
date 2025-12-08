@@ -72,7 +72,7 @@
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/bhumitra.git
+git clone https://github.com/ak0586/bhumitra.git
 cd bhumitra
 ```
 
