@@ -54,11 +54,15 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
     if (status == LocationPermissionStatus.granted) {
       // Get initial position and move map
       final position = await LocationHelper.getCurrentPosition();
-      if (position != null && mounted) {
-        _mapController.move(
-          LatLng(position.latitude, position.longitude),
-          17.0,
-        );
+      if (position != null && mounted && _isMapReady) {
+        // Wait a bit more to ensure MapController is fully attached
+        await Future.delayed(const Duration(milliseconds: 200));
+        if (mounted) {
+          _mapController.move(
+            LatLng(position.latitude, position.longitude),
+            17.0,
+          );
+        }
       }
 
       _userLocationSubscription = LocationHelper.getPositionStream().listen((
@@ -267,6 +271,10 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
               TileLayer(
                 urlTemplate: _mapTileUrls[mapType] ?? _mapTileUrls['Normal']!,
                 userAgentPackageName: 'com.bhumitra.app',
+                // Memory optimization: reduce cached tiles
+                keepBuffer: 2, // Reduced from default 3
+                maxNativeZoom: 19,
+                maxZoom: 19,
               ),
 
               // Polygon overlay

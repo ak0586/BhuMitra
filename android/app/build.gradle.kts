@@ -38,11 +38,34 @@ android {
 
     buildTypes {
         release {
+            // Enable code shrinking, obfuscation, and optimization
+            // Temporarily disabled for testing
+            isMinifyEnabled = false
+            isShrinkResources = false
+            /*
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            */
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+    
+    // Split APKs by ABI for smaller individual APK sizes
+    // Temporarily disabled for testing
+    /*
+    splits {
+        abi {
+            isEnabled = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86_64")
+            isUniversalApk = false
+        }
+    }
+    */
 }
 
 flutter {

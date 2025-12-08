@@ -170,6 +170,13 @@ class AuthService {
 
   // Sign out
   Future<void> signOut() async {
+    try {
+      // Clear Firestore cache to free up memory
+      await FirebaseFirestore.instance.clearPersistence();
+    } catch (e) {
+      // Ignore errors if cache clearing fails
+      print('Cache clearing failed: $e');
+    }
     await _googleSignIn.signOut();
     await _auth.signOut();
   }
