@@ -5,8 +5,7 @@ import '../../core/preferences.dart';
 import '../../core/localization.dart';
 
 // Simple state providers (not persisted)
-final precisionProvider = StateProvider<int>((ref) => 2);
-final autoSaveProvider = StateProvider<bool>((ref) => true);
+// Simple state providers (not persisted)
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -57,7 +56,7 @@ class SettingsScreen extends ConsumerWidget {
                   Icons.map,
                   'map_type'.tr(ref),
                   mapTypeProvider,
-                  ['normal'.tr(ref), 'satellite'.tr(ref), 'terrain'.tr(ref)],
+                  ['normal'.tr(ref), 'satellite'.tr(ref)],
                 ),
                 const Divider(height: 1),
                 _buildDropdownTile(
@@ -119,7 +118,9 @@ class SettingsScreen extends ConsumerWidget {
                     }).toList(),
                     onChanged: (int? newValue) {
                       if (newValue != null) {
-                        ref.read(precisionProvider.notifier).state = newValue;
+                        ref
+                            .read(precisionProvider.notifier)
+                            .setPrecision(newValue);
                       }
                     },
                   ),
@@ -163,11 +164,11 @@ class SettingsScreen extends ConsumerWidget {
                         await ref
                             .read(mapTypeProvider.notifier)
                             .setMapType('Normal');
-                        await ref
+                        ref
                             .read(defaultUnitProvider.notifier)
                             .setDefaultUnit('Square Feet');
-                        ref.read(precisionProvider.notifier).state = 2;
-                        ref.read(autoSaveProvider.notifier).state = true;
+                        ref.read(precisionProvider.notifier).setPrecision(2);
+                        ref.read(autoSaveProvider.notifier).setAutoSave(true);
                         ref
                             .read(localeProvider.notifier)
                             .setLocale(const Locale('en'));
@@ -234,14 +235,14 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  // For StateProvider (Auto Save)
+  // For StateNotifierProvider (Auto Save)
   Widget _buildSwitchTile(
     BuildContext context,
     WidgetRef ref,
     IconData icon,
     String title,
     String subtitle,
-    StateProvider<bool> provider,
+    StateNotifierProvider<AutoSaveNotifier, bool> provider,
   ) {
     return SwitchListTile(
       secondary: Container(
@@ -258,7 +259,7 @@ class SettingsScreen extends ConsumerWidget {
       subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
       value: ref.watch(provider),
       onChanged: (bool value) {
-        ref.read(provider.notifier).state = value;
+        ref.read(provider.notifier).setAutoSave(value);
       },
       activeColor: const Color(0xFF2E7D32),
     );

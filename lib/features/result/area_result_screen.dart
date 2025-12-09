@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/providers.dart';
 import '../../core/saved_plots_provider.dart';
+import '../../core/preferences.dart';
 import '../../core/location_helper.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -44,9 +45,15 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
     'Hectare': 0.0001,
   };
 
+  // State for navigation and saving
+  bool _hasManuallySaved = false;
+  bool _canPop = false;
+
   @override
   void initState() {
     super.initState();
+    // Load default unit from settings
+    _selectedDisplayUnit = ref.read(defaultUnitProvider);
     _loadSavedCustomUnit();
   }
 
@@ -206,6 +213,9 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
                 await ref.read(savedPlotsProvider.notifier).addPlot(plot);
 
                 if (mounted) {
+                  setState(() {
+                    _hasManuallySaved = true;
+                  });
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Plot saved successfully')),
                   );
@@ -710,50 +720,154 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
     );
   }
 
+  Future<void> _handleAutoSave() async {
+    // Check if auto-save is enabled
+    final autoSave = ref.read(autoSaveProvider);
+    debugPrint('Auto-save check: $autoSave');
+    if (!autoSave) return;
+
+    final areaResult = ref.read(areaResultProvider);
+    if (areaResult == null) {
+      debugPrint('Auto-save skipped: areaResult is null');
+      return;
+    }
+
+    try {
+      // Generate default name
+      final now = DateTime.now();
+      final formattedDate =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+      final name = 'Auto-Plot $formattedDate';
+
+      // Get location address for the first point
+      String location = 'Unknown Location';
+      if (areaResult.coordinates.isNotEmpty &&
+          areaResult.coordinates[0].isNotEmpty) {
+        try {
+          location = await LocationHelper.getAddressFromCoordinates(
+            areaResult.coordinates[0][0],
+            areaResult.coordinates[0][1],
+          );
+        } catch (e) {
+          debugPrint('Error getting address for auto-save: $e');
+        }
+      }
+
+      final plot = SavedPlot(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: name,
+        area: '${areaResult.squareMeters.toStringAsFixed(2)} sq m',
+        date: formattedDate.split(' ')[0],
+        location: location,
+        coordinates: areaResult.coordinates,
+      );
+
+      await ref.read(savedPlotsProvider.notifier).addPlot(plot);
+      debugPrint('Auto-save successful');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Plot auto-saved'),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error auto-saving plot: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Auto-save failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleBackNavigation() async {
+    debugPrint(
+      '_handleBackNavigation called. _hasManuallySaved: $_hasManuallySaved, autoSave: ${ref.read(autoSaveProvider)}',
+    );
+    // Check if auto-save is enabled and we haven't saved manually
+    final autoSave = ref.read(autoSaveProvider);
+
+    if (autoSave && !_hasManuallySaved) {
+      // Show saving feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Saving plot before exit...'),
+            duration: Duration(milliseconds: 1000),
+          ),
+        );
+      }
+
+      await _handleAutoSave();
+    }
+
+    if (mounted) {
+      setState(() {
+        _canPop = true;
+      });
+      // Allow the pop to proceed
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF2E7D32),
-        foregroundColor: Colors.white,
-        title: const Text('Area Calculation Result'),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+    return PopScope(
+      canPop: _canPop,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        _handleBackNavigation();
+      },
+      child: Scaffold(
+        backgroundColor: Colors.grey[50],
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF2E7D32),
+          foregroundColor: Colors.white,
+          title: const Text('Area Calculation Result'),
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => _handleBackNavigation(),
+          ),
         ),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Success Banner
-            _buildSuccessBanner(),
+        body: SingleChildScrollView(
+          child: Column(
+            children: [
+              // Success Banner
+              _buildSuccessBanner(),
 
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Primary Area Units Card
-                  _buildPrimaryAreaCard(),
+              // Content
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Primary Area Units Card
+                    _buildPrimaryAreaCard(),
 
-                  const SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
-                  // Custom Local Unit Section
-                  _buildCustomLocalUnitSection(),
+                    // Custom Local Unit Section
+                    _buildCustomLocalUnitSection(),
 
-                  const SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
-                  // Action Buttons
-                  _buildActionButtons(),
+                    // Action Buttons
+                    _buildActionButtons(),
 
-                  const SizedBox(height: 16),
-                ],
+                    const SizedBox(height: 16),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -800,10 +914,9 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
         child: Column(
           children: [
             // Main Display Value
+            // Main Display Value
             Text(
-              displayArea < 1
-                  ? displayArea.toStringAsFixed(4)
-                  : displayArea.toStringAsFixed(2),
+              displayArea.toStringAsFixed(ref.watch(precisionProvider)),
               style: const TextStyle(
                 fontSize: 48,
                 fontWeight: FontWeight.bold,
@@ -856,9 +969,8 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
   }
 
   Widget _buildPrimaryUnitRow(String label, double value) {
-    final displayValue = value < 1
-        ? value.toStringAsFixed(4)
-        : value.toStringAsFixed(2);
+    final precision = ref.watch(precisionProvider);
+    final displayValue = value.toStringAsFixed(precision);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1039,9 +1151,9 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          _customCalculatedArea! < 1
-                              ? _customCalculatedArea!.toStringAsFixed(4)
-                              : _customCalculatedArea!.toStringAsFixed(2),
+                          _customCalculatedArea!.toStringAsFixed(
+                            ref.watch(precisionProvider),
+                          ),
                           style: const TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
@@ -1117,7 +1229,7 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
               child: SizedBox(
                 height: 50,
                 child: OutlinedButton.icon(
-                  onPressed: () => context.pop(),
+                  onPressed: _handleBackNavigation,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.grey[700],
                     side: BorderSide(color: Colors.grey[400]!, width: 1),

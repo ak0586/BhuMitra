@@ -144,6 +144,7 @@ class _BhuMitraAppState extends ConsumerState<BhuMitraApp> {
     ref.read(darkModeProvider.notifier).loadState();
     ref.read(offlineModeProvider.notifier).loadState();
     ref.read(onboardingCompletedProvider.notifier).loadState();
+    ref.read(autoSaveProvider.notifier).loadState();
   }
 
   @override

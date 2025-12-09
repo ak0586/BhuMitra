@@ -25,56 +25,90 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
 
   StreamSubscription<Position>? _userLocationSubscription;
   LatLng? _userLocation;
-  bool _isMapReady = false;
+  bool _isZooming = false; // Prevent rapid zoom changes
+
+  // Zoom constraints
+  static const double _minZoom = 3.0;
+  static const double _maxZoom = 25.0;
 
   // Map tile URLs for different types
   final Map<String, String> _mapTileUrls = {
     'Normal': 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
     'Satellite':
         'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', // Changed to Hybrid (y) for labels
-    'Terrain': 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
   };
+
+  LatLng? _initialCenter;
+  bool _isLoadingLocation = true;
 
   @override
   void initState() {
     super.initState();
-    // Delay to ensure widget tree is built
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (mounted) {
-        setState(() {
-          _isMapReady = true;
-        });
-        _startUserLocationTracking();
-      }
-    });
+    _initializeLocation();
   }
 
-  void _startUserLocationTracking() async {
-    final status = await LocationHelper.requestLocationPermission();
-    if (status == LocationPermissionStatus.granted) {
-      // Get initial position and move map
-      final position = await LocationHelper.getCurrentPosition();
-      if (position != null && mounted && _isMapReady) {
-        // Wait a bit more to ensure MapController is fully attached
-        await Future.delayed(const Duration(milliseconds: 200));
-        if (mounted) {
-          _mapController.move(
-            LatLng(position.latitude, position.longitude),
-            17.0,
-          );
-        }
-      }
+  Future<void> _initializeLocation() async {
+    // Default fallback: Sector 10, Gurgaon
+    var startLocation = const LatLng(28.4595, 77.0266);
+    bool locationFound = false;
 
-      _userLocationSubscription = LocationHelper.getPositionStream().listen((
-        position,
-      ) {
-        if (mounted) {
-          setState(() {
-            _userLocation = LatLng(position.latitude, position.longitude);
-          });
-        }
+    // 1. Try to load from cache first for immediate display
+    await ref.read(cachedLocationProvider.notifier).loadState();
+    final cachedLoc = ref.read(cachedLocationProvider);
+    if (cachedLoc != null) {
+      startLocation = LatLng(cachedLoc.lat, cachedLoc.lng);
+      locationFound = true;
+    }
+
+    if (mounted) {
+      setState(() {
+        _initialCenter = startLocation;
+        _isLoadingLocation =
+            false; // Show map immediately with cached or fallback
       });
     }
+
+    // 2. Fetch fresh location in background
+    try {
+      final status = await LocationHelper.requestLocationPermission();
+      if (status == LocationPermissionStatus.granted) {
+        final position = await LocationHelper.getCurrentPosition();
+        if (position != null) {
+          final newLoc = LatLng(position.latitude, position.longitude);
+
+          // Move map to actual location if it differs significantly or if we were using fallback
+          if (!locationFound ||
+              (cachedLoc != null &&
+                  ((cachedLoc.lat - newLoc.latitude).abs() > 0.0001 ||
+                      (cachedLoc.lng - newLoc.longitude).abs() > 0.0001))) {
+            if (mounted) {
+              _animatedMapMove(newLoc, 17.0);
+            }
+          }
+
+          // Update cache
+          ref
+              .read(cachedLocationProvider.notifier)
+              .setLocation(position.latitude, position.longitude);
+        }
+        // Start tracking user location for blue dot
+        _startUserLocationTracking();
+      }
+    } catch (e) {
+      debugPrint('Error getting fresh location: $e');
+    }
+  }
+
+  void _startUserLocationTracking() {
+    _userLocationSubscription = LocationHelper.getPositionStream().listen((
+      position,
+    ) {
+      if (mounted) {
+        setState(() {
+          _userLocation = LatLng(position.latitude, position.longitude);
+        });
+      }
+    });
   }
 
   void _handleMapTap(LatLng position) {
@@ -178,7 +212,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
       try {
         final position = await Geolocator.getCurrentPosition();
         if (mounted) {
-          _animatedMapMove(LatLng(position.latitude, position.longitude), 17.0);
+          _animatedMapMove(LatLng(position.latitude, position.longitude), 20.0);
         }
       } catch (e) {
         if (mounted) {
@@ -200,6 +234,61 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
       setState(() {
         _isLocating = false;
       });
+    }
+  }
+
+  void _handleZoom(bool zoomIn) async {
+    if (_isZooming) return;
+
+    setState(() {
+      _isZooming = true;
+    });
+
+    try {
+      final currentZoom = _mapController.camera.zoom;
+      final newZoom = zoomIn ? currentZoom + 1 : currentZoom - 1;
+
+      // Apply zoom constraints
+      if (newZoom < _minZoom || newZoom > _maxZoom) {
+        return;
+      }
+
+      // Animate zoom for smoother transition and better tile loading
+      final controller = AnimationController(
+        duration: const Duration(milliseconds: 200),
+        vsync: this,
+      );
+
+      final Animation<double> animation = CurvedAnimation(
+        parent: controller,
+        curve: Curves.easeInOut,
+      );
+
+      final zoomTween = Tween<double>(begin: currentZoom, end: newZoom);
+
+      controller.addListener(() {
+        _mapController.move(
+          _mapController.camera.center,
+          zoomTween.evaluate(animation),
+        );
+      });
+
+      controller.addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          controller.dispose();
+        }
+      });
+
+      await controller.forward();
+
+      // Minimal delay for stability
+      await Future.delayed(const Duration(milliseconds: 50));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isZooming = false;
+        });
+      }
     }
   }
 
@@ -247,7 +336,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
         .toList();
 
     // Show loading while map initializes
-    if (!_isMapReady) {
+    if (_isLoadingLocation) {
       return const Scaffold(
         body: Center(
           child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
@@ -263,18 +352,34 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              initialCenter: const LatLng(26.8467, 80.9462), // Lucknow
-              initialZoom: 15.0,
+              initialCenter: _initialCenter!, // Use user location
+              initialZoom: 18.0,
+              minZoom: _minZoom,
+              maxZoom: _maxZoom,
               onTap: (_, position) => _handleMapTap(position),
+              // Configure interaction options for smoother pinch zoom
+              interactionOptions: const InteractionOptions(
+                flags: InteractiveFlag.all,
+                pinchZoomThreshold: 0.1, // More responsive pinches
+                scrollWheelVelocity: 0.01, // Faster scroll wheel zoom
+                pinchZoomWinGestures: MultiFingerGesture.pinchZoom,
+              ),
             ),
             children: [
               TileLayer(
                 urlTemplate: _mapTileUrls[mapType] ?? _mapTileUrls['Normal']!,
                 userAgentPackageName: 'com.bhumitra.app',
-                // Memory optimization: reduce cached tiles
-                keepBuffer: 2, // Reduced from default 3
+                // Memory and performance optimizations
+                keepBuffer: 3, // Restored to default for stability
+                panBuffer: 1, // Restored to prevent blank screen at high zoom
                 maxNativeZoom: 19,
-                maxZoom: 19,
+                maxZoom: _maxZoom,
+                minZoom: _minZoom,
+                retinaMode: true, // Better quality on high-DPI screens
+                // Smooth tile transitions to prevent blank screens
+                tileDisplay: const TileDisplay.fadeIn(
+                  duration: Duration(milliseconds: 100),
+                ),
               ),
 
               // Polygon overlay
@@ -283,9 +388,9 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
                   polygons: [
                     Polygon(
                       points: latLngPoints,
-                      color: const Color(0xFF66BB6A).withOpacity(0.3),
+                      color: const Color(0xFF66BB6A).withOpacity(0.2),
                       borderColor: const Color(0xFF2E7D32),
-                      borderStrokeWidth: 2,
+                      borderStrokeWidth: 3,
                     ),
                   ],
                 ),
@@ -391,13 +496,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
             child: FloatingActionButton(
               heroTag: 'zoom_in',
               mini: true,
-              onPressed: () {
-                final currentZoom = _mapController.camera.zoom;
-                _mapController.move(
-                  _mapController.camera.center,
-                  currentZoom + 1,
-                );
-              },
+              onPressed: _isZooming ? null : () => _handleZoom(true),
               backgroundColor: Colors.white,
               child: const Icon(Icons.add, color: Color(0xFF2E7D32)),
             ),
@@ -410,13 +509,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
             child: FloatingActionButton(
               heroTag: 'zoom_out',
               mini: true,
-              onPressed: () {
-                final currentZoom = _mapController.camera.zoom;
-                _mapController.move(
-                  _mapController.camera.center,
-                  currentZoom - 1,
-                );
-              },
+              onPressed: _isZooming ? null : () => _handleZoom(false),
               backgroundColor: Colors.white,
               child: const Icon(Icons.remove, color: Color(0xFF2E7D32)),
             ),
@@ -534,7 +627,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
           child: DropdownButton<String>(
             value: mapType,
             icon: const Icon(Icons.layers, color: Color(0xFF2E7D32)),
-            items: ['Normal', 'Satellite', 'Terrain']
+            items: ['Normal', 'Satellite']
                 .map(
                   (type) => DropdownMenuItem(
                     value: type,

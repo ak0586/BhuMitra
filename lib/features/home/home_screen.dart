@@ -6,6 +6,7 @@ import '../../core/saved_plots_provider.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../core/localization.dart';
 import '../../core/user_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -147,6 +148,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         setState(() {
           _currentAddress = 'Error getting location';
         });
+      }
+    }
+  }
+
+  Future<void> _launchFeedbackEmail() async {
+    final Uri emailLaunchUri = Uri(
+      scheme: 'mailto',
+      path: 'ankit.kumar@aus.ac.in',
+      query: 'subject=BhuMitra Feedback',
+    );
+
+    try {
+      if (!await launchUrl(emailLaunchUri)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not launch email app')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not launch email app')),
+        );
       }
     }
   }
@@ -485,7 +510,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ListTile(
             leading: const Icon(Icons.feedback_outlined),
             title: Text('send_feedback'.tr(ref)),
-            onTap: () {},
+            onTap: () {
+              context.pop();
+              _launchFeedbackEmail();
+            },
           ),
           const Divider(),
           ListTile(

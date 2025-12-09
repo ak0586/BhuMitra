@@ -105,3 +105,72 @@ class DefaultUnitNotifier extends StateNotifier<String> {
     await prefs.setString('default_unit', unit);
   }
 }
+
+// Precision Provider
+final precisionProvider = StateNotifierProvider<PrecisionNotifier, int>((ref) {
+  return PrecisionNotifier();
+});
+
+class PrecisionNotifier extends StateNotifier<int> {
+  PrecisionNotifier() : super(2);
+
+  Future<void> loadState() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getInt('precision_level') ?? 2;
+  }
+
+  Future<void> setPrecision(int precision) async {
+    final prefs = await SharedPreferences.getInstance();
+    state = precision;
+    await prefs.setInt('precision_level', precision);
+  }
+}
+
+// Cached Location Provider
+final cachedLocationProvider =
+    StateNotifierProvider<CachedLocationNotifier, ({double lat, double lng})?>((
+      ref,
+    ) {
+      return CachedLocationNotifier();
+    });
+
+class CachedLocationNotifier
+    extends StateNotifier<({double lat, double lng})?> {
+  CachedLocationNotifier() : super(null);
+
+  Future<void> loadState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lat = prefs.getDouble('cached_lat');
+    final lng = prefs.getDouble('cached_lng');
+    if (lat != null && lng != null) {
+      state = (lat: lat, lng: lng);
+    }
+  }
+
+  Future<void> setLocation(double lat, double lng) async {
+    final prefs = await SharedPreferences.getInstance();
+    state = (lat: lat, lng: lng);
+    await prefs.setDouble('cached_lat', lat);
+    await prefs.setDouble('cached_lng', lng);
+  }
+}
+
+// Auto Save Provider
+final autoSaveProvider = StateNotifierProvider<AutoSaveNotifier, bool>((ref) {
+  return AutoSaveNotifier();
+});
+
+class AutoSaveNotifier extends StateNotifier<bool> {
+  AutoSaveNotifier() : super(true);
+
+  Future<void> loadState() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getBool('auto_save') ?? true;
+  }
+
+  Future<void> setAutoSave(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    state = value;
+    await prefs.setBool('auto_save', value);
+  }
+}

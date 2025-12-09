@@ -68,10 +68,19 @@ class SavedPlotsNotifier extends StateNotifier<List<SavedPlot>> {
 
   Future<void> addPlot(SavedPlot plot) async {
     final prefs = await SharedPreferences.getInstance();
-    final newState = [plot, ...state];
+
+    // Ensure we have the latest data from disk
+    final plotsJson = prefs.getStringList('saved_plots') ?? [];
+    final currentPlots = plotsJson
+        .map((e) => SavedPlot.fromJson(jsonDecode(e)))
+        .toList();
+
+    final newState = [plot, ...currentPlots];
     state = newState;
-    final plotsJson = newState.map((e) => jsonEncode(e.toJson())).toList();
-    await prefs.setStringList('saved_plots', plotsJson);
+
+    final newPlotsJson = newState.map((e) => jsonEncode(e.toJson())).toList();
+    await prefs.setStringList('saved_plots', newPlotsJson);
+    print('Added plot. Total saved: ${newState.length}');
   }
 
   Future<void> deletePlot(String id) async {
