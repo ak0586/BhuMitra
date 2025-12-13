@@ -1,12 +1,79 @@
 import 'package:bhumitra/core/localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import '../../core/ad_manager.dart';
 
-class UserGuideScreen extends ConsumerWidget {
+class UserGuideScreen extends ConsumerStatefulWidget {
   const UserGuideScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<UserGuideScreen> createState() => _UserGuideScreenState();
+}
+
+class _UserGuideScreenState extends ConsumerState<UserGuideScreen> {
+  BannerAd? _bannerAd;
+  bool _isBannerAdLoaded = false;
+  NativeAd? _nativeAd;
+  bool _isNativeAdLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBannerAd();
+    _loadNativeAd();
+  }
+
+  void _loadNativeAd() {
+    _nativeAd = AdManager().loadNativeAd(
+      onAdLoaded: (ad) {
+        if (mounted) {
+          setState(() {
+            _isNativeAdLoaded = true;
+          });
+        }
+      },
+      onAdFailedToLoad: (ad, error) {
+        if (mounted) {
+          setState(() {
+            _isNativeAdLoaded = false;
+            _nativeAd?.dispose();
+            _nativeAd = null;
+          });
+        }
+      },
+    );
+  }
+
+  void _loadBannerAd() {
+    _bannerAd = AdManager().loadBannerAd(
+      onAdLoaded: (ad) {
+        if (mounted) {
+          setState(() {
+            _isBannerAdLoaded = true;
+          });
+        }
+      },
+      onAdFailedToLoad: (ad, error) {
+        if (mounted) {
+          setState(() {
+            _isBannerAdLoaded = false;
+            _bannerAd = null;
+          });
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    _nativeAd?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -15,61 +82,87 @@ class UserGuideScreen extends ConsumerWidget {
         title: Text('user_guide'.tr(ref)),
         elevation: 0,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: Column(
         children: [
-          // Introduction
-          _buildSection(
-            context,
-            ref,
-            'introduction',
-            'introduction_desc',
-            Icons.info_outline,
-            Colors.blue,
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // Introduction
+                _buildSection(
+                  context,
+                  ref,
+                  'introduction',
+                  'introduction_desc',
+                  Icons.info_outline,
+                  Colors.blue,
+                ),
+
+                const SizedBox(height: 16),
+
+                // Getting Started
+                _buildSection(
+                  context,
+                  ref,
+                  'getting_started',
+                  'getting_started_desc',
+                  Icons.rocket_launch,
+                  Colors.green,
+                ),
+
+                const SizedBox(height: 16),
+
+                // Native Ad
+                if (_isNativeAdLoaded && _nativeAd != null) ...[
+                  Container(
+                    height: 120, // Adjust height based on template
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: AdWidget(ad: _nativeAd!),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Step-by-step Guide
+                _buildStepByStepGuide(context, ref),
+
+                const SizedBox(height: 16),
+
+                // Tips & Best Practices
+                _buildSection(
+                  context,
+                  ref,
+                  'tips_best_practices',
+                  'tips_desc',
+                  Icons.lightbulb_outline,
+                  Colors.orange,
+                ),
+
+                const SizedBox(height: 16),
+
+                // Troubleshooting
+                _buildSection(
+                  context,
+                  ref,
+                  'troubleshooting',
+                  'troubleshooting_desc',
+                  Icons.build,
+                  Colors.red,
+                ),
+
+                const SizedBox(height: 32),
+              ],
+            ),
           ),
-
-          const SizedBox(height: 16),
-
-          // Getting Started
-          _buildSection(
-            context,
-            ref,
-            'getting_started',
-            'getting_started_desc',
-            Icons.rocket_launch,
-            Colors.green,
-          ),
-
-          const SizedBox(height: 16),
-
-          // Step-by-step Guide
-          _buildStepByStepGuide(context, ref),
-
-          const SizedBox(height: 16),
-
-          // Tips & Best Practices
-          _buildSection(
-            context,
-            ref,
-            'tips_best_practices',
-            'tips_desc',
-            Icons.lightbulb_outline,
-            Colors.orange,
-          ),
-
-          const SizedBox(height: 16),
-
-          // Troubleshooting
-          _buildSection(
-            context,
-            ref,
-            'troubleshooting',
-            'troubleshooting_desc',
-            Icons.build,
-            Colors.red,
-          ),
-
-          const SizedBox(height: 32),
+          if (_isBannerAdLoaded && _bannerAd != null)
+            SizedBox(
+              height: _bannerAd!.size.height.toDouble(),
+              width: _bannerAd!.size.width.toDouble(),
+              child: AdWidget(ad: _bannerAd!),
+            ),
         ],
       ),
     );

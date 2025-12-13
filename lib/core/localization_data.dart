@@ -185,7 +185,8 @@ const Map<String, Map<String, String>> translations = {
     'multi_language': 'Multi-language support',
     'offline_mode_feature': 'Offline mode',
     'dark_mode_feature': 'Dark mode',
-    'copyright': '© 2024 BhuMitra. All rights reserved.',
+    'copyright': '© 2025 BhuMitra. All rights reserved.',
+    'privacy_policy': 'Privacy Policy',
 
     // Help & Support Screen
     'help_us_improve': 'Help us improve',
@@ -231,10 +232,10 @@ const Map<String, Map<String, String>> translations = {
         'Tap "Measure Land" from the home screen. Choose between Pin Mode (tap on map) or Walk Mode (walk around boundary).',
     'step3_title': 'Mark Boundaries',
     'step3_desc':
-        'Mark at least 3 points around your land. In Walk Mode, walk slowly around the perimeter. In Pin Mode, tap each corner on the map.',
+        'Mark at least 3 points around your land. In Pin Mode, tap each corner of the land you want to measure on the map.',
     'step4_title': 'Calculate Area',
     'step4_desc':
-        'Once you\'ve marked all points, tap "Finish" to calculate the area. The app will show results in multiple units.',
+        'Once you\'ve marked all points, tap "Calculate" to calculate the area. The app will show results in multiple units.',
     'step5_title': 'Save & Share',
     'step5_desc':
         'Save your measurement with a name for future reference. You can also generate and share PDF reports.',
@@ -435,7 +436,8 @@ const Map<String, Map<String, String>> translations = {
     'multi_language': 'बहु-भाषा समर्थन',
     'offline_mode_feature': 'ऑफ़लाइन मोड',
     'dark_mode_feature': 'डार्क मोड',
-    'copyright': '© 2024 BhuMitra। सर्वाधिकार सुरक्षित।',
+    'copyright': '© 2025 BhuMitra. सर्वाधिकार सुरक्षित।',
+    'privacy_policy': 'गोपनीयता नीति',
 
     // Help & Support Screen
     'help_us_improve': 'हमें बेहतर बनाने में मदद करें',
@@ -478,13 +480,13 @@ const Map<String, Map<String, String>> translations = {
         'BhuMitra लॉन्च करें और संकेत मिलने पर स्थान अनुमतियां दें। GPS सिग्नल के स्थिर होने की प्रतीक्षा करें।',
     'step2_title': 'मापना शुरू करें',
     'step2_desc':
-        'होम स्क्रीन से "भूमि मापें" पर टैप करें। पिन मोड (मानचित्र पर टैप करें) या वॉक मोड (सीमा के चारों ओर चलें) के बीच चुनें।',
+        'होम स्क्रीन से "भूमि मापें" पर टैप करें। पिन मोड (मानचित्र पर टैप करें)',
     'step3_title': 'सीमाएं चिह्नित करें',
     'step3_desc':
-        'अपनी भूमि के चारों ओर कम से कम 3 बिंदु चिह्नित करें। वॉक मोड में, परिधि के चारों ओर धीरे-धीरे चलें। पिन मोड में, मानचित्र पर प्रत्येक कोने पर टैप करें।',
+        'अपनी भूमि के चारों ओर कम से कम 3 बिंदु चिह्नित करें। पिन मोड में, मानचित्र पर प्रत्येक कोने पर टैप करें।',
     'step4_title': 'क्षेत्रफल की गणना करें',
     'step4_desc':
-        'एक बार जब आप सभी बिंदुओं को चिह्नित कर लें, तो क्षेत्रफल की गणना करने के लिए "समाप्त करें" पर टैप करें। ऐप कई इकाइयों में परिणाम दिखाएगा।',
+        'एक बार जब आप सभी बिंदुओं को चिह्नित कर लें, तो क्षेत्रफल की गणना करने के लिए "Calculate" पर टैप करें। ऐप कई इकाइयों में परिणाम दिखाएगा।',
     'step5_title': 'सहेजें और साझा करें',
     'step5_desc':
         'भविष्य के संदर्भ के लिए अपने माप को एक नाम के साथ सहेजें। आप PDF रिपोर्ट भी बना और साझा कर सकते हैं।',

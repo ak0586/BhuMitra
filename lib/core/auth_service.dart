@@ -168,6 +168,52 @@ class AuthService {
     }
   }
 
+  // Delete Account
+  Future<void> deleteAccount(String password) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('No user logged in');
+      }
+
+      // Re-authenticate before deletion (Critical security step)
+      // For Email/Password provider
+      if (user.providerData.any((p) => p.providerId == 'password')) {
+        final credential = EmailAuthProvider.credential(
+          email: user.email!,
+          password: password,
+        );
+        await user.reauthenticateWithCredential(credential);
+      }
+      // For Google Provider, we rely on 'recent login'.
+      // If 'requires-recent-login' error occurs, UI will ask user to re-login.
+
+      // 1. Delete Firestore Data
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .delete();
+      } catch (e) {
+        print('Error deleting user data: $e');
+        // Continue to delete auth account even if firestore fails
+      }
+
+      // 2. Delete Auth Account
+      await user.delete();
+      await _googleSignIn.signOut();
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        throw Exception(
+          'Security requires recent login. Please Sign Out and Log In again to delete your account.',
+        );
+      }
+      throw _handleAuthException(e);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // Sign out
   Future<void> signOut() async {
     try {

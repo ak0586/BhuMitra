@@ -8,7 +8,7 @@
 PRODUCT_NAME = bhumitra
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.bhumitra
+PRODUCT_BUNDLE_IDENTIFIER = app.ankit.bhumitra
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2025 com.example. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2025 app.ankit. All rights reserved.

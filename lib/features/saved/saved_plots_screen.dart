@@ -9,6 +9,8 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:bhumitra/core/localization_data.dart';
 import 'package:bhumitra/core/localization.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import '../../core/ad_manager.dart';
 
 class SavedPlotsScreen extends ConsumerStatefulWidget {
   const SavedPlotsScreen({super.key});
@@ -20,17 +22,66 @@ class SavedPlotsScreen extends ConsumerStatefulWidget {
 class _SavedPlotsScreenState extends ConsumerState<SavedPlotsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  BannerAd? _bannerAd;
+  bool _isBannerAdLoaded = false;
+  NativeAd? _nativeAd;
+  bool _isNativeAdLoaded = false;
+
+  void _loadBannerAd() {
+    _bannerAd = AdManager().loadBannerAd(
+      onAdLoaded: (ad) {
+        if (mounted) {
+          setState(() {
+            _isBannerAdLoaded = true;
+          });
+        }
+      },
+      onAdFailedToLoad: (ad, error) {
+        if (mounted) {
+          setState(() {
+            _isBannerAdLoaded = false;
+            _bannerAd = null;
+          });
+        }
+      },
+    );
+  }
+
+  void _loadNativeAd() {
+    _nativeAd = AdManager().loadNativeAd(
+      onAdLoaded: (ad) {
+        if (mounted) {
+          setState(() {
+            _isNativeAdLoaded = true;
+          });
+        }
+      },
+      onAdFailedToLoad: (ad, error) {
+        if (mounted) {
+          setState(() {
+            _isNativeAdLoaded = false;
+            _nativeAd?.dispose();
+            _nativeAd = null;
+          });
+        }
+      },
+    );
+  }
 
   @override
   void initState() {
     super.initState();
     // Lazy load saved plots only when this screen is opened
     Future.microtask(() => ref.read(savedPlotsProvider.notifier).loadPlots());
+    _loadBannerAd();
+    _loadNativeAd();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _bannerAd?.dispose();
+    _nativeAd?.dispose();
     super.dispose();
   }
 
@@ -100,12 +151,46 @@ class _SavedPlotsScreenState extends ConsumerState<SavedPlotsScreen> {
                 ? _buildEmptyState(context, _searchQuery.isNotEmpty)
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: plots.length,
+                    // Add +1 to item count if native ad is loaded
+                    itemCount:
+                        plots.length +
+                        (_isNativeAdLoaded && _nativeAd != null ? 1 : 0),
                     itemBuilder: (context, index) {
-                      return _PlotCard(plot: plots[index]);
+                      // Show ad at index 2 (after 2nd plot) or at the end if fewer than 2 items
+                      if (_isNativeAdLoaded &&
+                          _nativeAd != null &&
+                          index == 2) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          height: 120, // Adjust based on template style
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: AdWidget(ad: _nativeAd!),
+                        );
+                      }
+
+                      // Calculate actual plot index
+                      // If we are past the ad index (2), subtract 1 from the list index
+                      final plotIndex =
+                          (_isNativeAdLoaded && _nativeAd != null && index > 2)
+                          ? index - 1
+                          : index;
+
+                      // Safety check for bounds
+                      if (plotIndex >= plots.length) return const SizedBox();
+
+                      return _PlotCard(plot: plots[plotIndex]);
                     },
                   ),
           ),
+          if (_isBannerAdLoaded && _bannerAd != null)
+            SizedBox(
+              height: _bannerAd!.size.height.toDouble(),
+              width: _bannerAd!.size.width.toDouble(),
+              child: AdWidget(ad: _bannerAd!),
+            ),
         ],
       ),
     );

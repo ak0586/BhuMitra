@@ -7,6 +7,8 @@ import 'package:geolocator/geolocator.dart';
 import '../../core/localization.dart';
 import '../../core/user_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import '../../core/ad_manager.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -17,11 +19,69 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   String _currentAddress = 'Detecting Location...';
+  BannerAd? _bannerAd;
+  bool _isBannerAdLoaded = false;
+  NativeAd? _nativeAd;
+  bool _isNativeAdLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _initializeLocation();
+    _loadAds();
+  }
+
+  void _loadAds() {
+    AdManager().initialize();
+    _bannerAd = AdManager().loadBannerAd(
+      onAdLoaded: (ad) {
+        if (mounted) {
+          setState(() {
+            _isBannerAdLoaded = true;
+          });
+        }
+      },
+      onAdFailedToLoad: (ad, error) {
+        if (mounted) {
+          setState(() {
+            _isBannerAdLoaded = false;
+            _bannerAd = null;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Banner Ad Failed: ${error.message} (Code: ${error.code})',
+              ),
+            ),
+          );
+        }
+      },
+    );
+
+    _nativeAd = AdManager().loadNativeAd(
+      onAdLoaded: (ad) {
+        if (mounted) {
+          setState(() {
+            _isNativeAdLoaded = true;
+          });
+        }
+      },
+      onAdFailedToLoad: (ad, error) {
+        if (mounted) {
+          setState(() {
+            _isNativeAdLoaded = false;
+            _nativeAd = null;
+          });
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    _nativeAd?.dispose();
+    super.dispose();
   }
 
   Future<void> _initializeLocation() async {
@@ -155,7 +215,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _launchFeedbackEmail() async {
     final Uri emailLaunchUri = Uri(
       scheme: 'mailto',
-      path: 'ankit.kumar@aus.ac.in',
+      path: 'ankitraj81919895@gmail.com',
       query: 'subject=BhuMitra Feedback',
     );
 
@@ -320,6 +380,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ],
                         ),
 
+                        if (_isNativeAdLoaded && _nativeAd != null) ...[
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            height: 300, // Adjust based on template size
+                            width: double.infinity,
+                            child: AdWidget(ad: _nativeAd!),
+                          ),
+                        ],
+
                         const SizedBox(height: 16),
 
                         // Help Card
@@ -337,6 +406,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
           ),
+          if (_isBannerAdLoaded && _bannerAd != null)
+            SizedBox(
+              height: _bannerAd!.size.height.toDouble(),
+              width: _bannerAd!.size.width.toDouble(),
+              child: AdWidget(ad: _bannerAd!),
+            ),
         ],
       ),
     );

@@ -1,16 +1,58 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../../core/user_provider.dart';
 import '../../core/saved_plots_provider.dart';
 import '../../core/localization.dart';
 import '../../core/auth_service.dart';
+import '../../core/ad_manager.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  BannerAd? _bannerAd;
+  bool _isBannerAdLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBannerAd();
+  }
+
+  void _loadBannerAd() {
+    _bannerAd = AdManager().loadBannerAd(
+      onAdLoaded: (ad) {
+        if (mounted) {
+          setState(() {
+            _isBannerAdLoaded = true;
+          });
+        }
+      },
+      onAdFailedToLoad: (ad, error) {
+        if (mounted) {
+          setState(() {
+            _isBannerAdLoaded = false;
+            _bannerAd = null;
+          });
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final userProfile = ref.watch(userProfileProvider);
     final savedPlots = ref.watch(savedPlotsProvider);
     final plotsCount = savedPlots.length;
@@ -18,249 +60,286 @@ class ProfileScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: Text('profile'.tr(ref)), elevation: 0),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Profile Header
-            Container(
-              margin: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 32),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
               child: Column(
                 children: [
+                  // Profile Header
                   Container(
-                    width: 100,
-                    height: 100,
+                    margin: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF66BB6A), Color(0xFF2E7D32)],
-                      ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        getInitials(userProfile.name),
-                        style: TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
-                      ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    userProfile.name,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    userProfile.email,
-                    style: const TextStyle(color: Colors.grey, fontSize: 16),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    onPressed: () => context.push('/edit-profile'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    icon: const Icon(Icons.edit, size: 18),
-                    label: Text('edit_profile'.tr(ref)),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Personal Information
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      'personal_info'.tr(ref),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  _buildInfoItem(
-                    Icons.email,
-                    'email'.tr(ref),
-                    userProfile.email,
-                  ),
-                  _buildInfoItem(
-                    Icons.phone,
-                    'phone'.tr(ref),
-                    userProfile.phone.isEmpty ? 'Not set' : userProfile.phone,
-                  ),
-                  _buildInfoItem(
-                    Icons.location_on,
-                    'location'.tr(ref),
-                    userProfile.location.isEmpty
-                        ? 'Not set'
-                        : userProfile.location,
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Statistics
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'statistics'.tr(ref),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(vertical: 32),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 100,
+                          height: 100,
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [Color(0xFF66BB6A), Color(0xFF2E7D32)],
                             ),
-                            borderRadius: BorderRadius.circular(12),
+                            shape: BoxShape.circle,
                           ),
-                          child: Column(
-                            children: [
-                              Text(
-                                '$plotsCount',
-                                style: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
+                          child: Center(
+                            child: Text(
+                              getInitials(userProfile.name),
+                              style: const TextStyle(
+                                fontSize: 36,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'plots_saved'.tr(ref),
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white70,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF42A5F5), Color(0xFF1976D2)],
                             ),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            children: [
-                              Text(
-                                '${plotsCount * 3}',
-                                style: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'measurements'.tr(ref),
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white70,
-                                ),
-                              ),
-                            ],
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 16),
+                        Text(
+                          userProfile.name,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          userProfile.email,
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton.icon(
+                          onPressed: () => context.push('/edit-profile'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(Icons.edit, size: 18),
+                          label: Text('edit_profile'.tr(ref)),
+                        ),
+                      ],
+                    ),
                   ),
+
+                  const SizedBox(height: 16),
+
+                  // Personal Information
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(
+                            'personal_info'.tr(ref),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        _buildInfoItem(
+                          Icons.email,
+                          'email'.tr(ref),
+                          userProfile.email,
+                        ),
+                        _buildInfoItem(
+                          Icons.phone,
+                          'phone'.tr(ref),
+                          userProfile.phone.isEmpty
+                              ? 'Not set'
+                              : userProfile.phone,
+                        ),
+                        _buildInfoItem(
+                          Icons.location_on,
+                          'location'.tr(ref),
+                          userProfile.location.isEmpty
+                              ? 'Not set'
+                              : userProfile.location,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Statistics
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'statistics'.tr(ref),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF66BB6A),
+                                      Color(0xFF2E7D32),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      '$plotsCount',
+                                      style: TextStyle(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'plots_saved'.tr(ref),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF42A5F5),
+                                      Color(0xFF1976D2),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      '${plotsCount * 3}',
+                                      style: TextStyle(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'measurements'.tr(ref),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Account Actions
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      children: [
+                        _buildActionItem(
+                          Icons.logout,
+                          'logout'.tr(ref),
+                          'Sign out of your account',
+                          () async {
+                            await ref.read(authServiceProvider).signOut();
+                            await ref
+                                .read(userProfileProvider.notifier)
+                                .resetProfile();
+                            if (context.mounted) {
+                              context.go('/login');
+                            }
+                          },
+                          isRed: false,
+                        ),
+                        const Divider(height: 1),
+                        _buildActionItem(
+                          Icons.delete_forever,
+                          'delete_account'.tr(ref),
+                          'Permanently delete your account',
+                          _handleDeleteAccount,
+                          isRed: true,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // App Version
+                  const Text(
+                    'BhuMitra v1.0.0',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+
+                  const SizedBox(height: 32),
                 ],
               ),
             ),
-
-            const SizedBox(height: 16),
-
-            // Account Actions
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: _buildActionItem(
-                Icons.logout,
-                'logout'.tr(ref),
-                'Sign out of your account',
-                () async {
-                  await ref.read(authServiceProvider).signOut();
-                  await ref.read(userProfileProvider.notifier).resetProfile();
-                  if (context.mounted) {
-                    context.go('/login');
-                  }
-                },
-                isRed: true,
-              ),
+          ),
+          if (_isBannerAdLoaded && _bannerAd != null)
+            SizedBox(
+              height: _bannerAd!.size.height.toDouble(),
+              width: _bannerAd!.size.width.toDouble(),
+              child: AdWidget(ad: _bannerAd!),
             ),
-
-            const SizedBox(height: 24),
-
-            // App Version
-            const Text(
-              'BhuMitra v1.0.0',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-
-            const SizedBox(height: 32),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -315,6 +394,101 @@ class ProfileScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _handleDeleteAccount() async {
+    final authService = ref.read(authServiceProvider);
+    final user = authService.currentUser;
+    if (user == null) return;
+
+    // 1. Confirm Intent
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('delete_account'.tr(ref)),
+        content: Text('delete_account_confirmation'.tr(ref)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('cancel'.tr(ref)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              'delete'.tr(ref),
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    String password = '';
+
+    // 2. If Password Provider, Ask for Password
+    if (user.providerData.any((p) => p.providerId == 'password')) {
+      if (!mounted) return;
+      final pwController = TextEditingController();
+      final pwInput = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('enter_password'.tr(ref)),
+          content: TextField(
+            controller: pwController,
+            obscureText: true,
+            decoration: const InputDecoration(border: OutlineInputBorder()),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('cancel'.tr(ref)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, pwController.text),
+              child: Text('confirm'.tr(ref)),
+            ),
+          ],
+        ),
+      );
+      if (pwInput == null || pwInput.isEmpty) return;
+      password = pwInput;
+    }
+
+    // 3. Call Delete
+    try {
+      if (!mounted) return;
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      await authService.deleteAccount(password);
+
+      if (mounted) {
+        Navigator.pop(context); // Dismiss loading
+        await ref.read(userProfileProvider.notifier).resetProfile();
+        if (context.mounted) {
+          context.go('/login');
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('account_deleted'.tr(ref))));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Dismiss loading if error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildActionItem(

@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -6,13 +8,19 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+val envProps = Properties()
+val envFile = rootProject.file("../.env")
+if (envFile.exists()) {
+    envFile.inputStream().use { envProps.load(it) }
+}
+
 dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.6.0"))
     implementation("com.google.firebase:firebase-auth")
 }
 
 android {
-    namespace = "com.example.bhumitra"
+    namespace = "app.ankit.bhumitra"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -27,13 +35,14 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.bhumitra"
+        applicationId = "app.ankit.bhumitra"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["adMobAppId"] = envProps["ADMOB_APP_ID_ANDROID"] as String? ?: envProps["app_id"] as String? ?: "ca-app-pub-3940256099942544~3347511713"
     }
 
     buildTypes {

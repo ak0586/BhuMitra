@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/localization.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AboutScreen extends ConsumerWidget {
   const AboutScreen({super.key});
@@ -81,7 +82,32 @@ class AboutScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 32),
+
+            const SizedBox(height: 16),
+            Card(
+              child: ListTile(
+                leading: const Icon(
+                  Icons.privacy_tip_outlined,
+                  color: Color(0xFF2E7D32),
+                ),
+                title: Text('privacy_policy'.tr(ref)),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () async {
+                  final Uri url = Uri.parse(
+                    'https://ak0586.github.io/BhuMitra/index.html',
+                  );
+                  if (!await launchUrl(url)) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Could not launch privacy policy'),
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+            ),
             Text(
               'copyright'.tr(ref),
               style: const TextStyle(color: Colors.grey, fontSize: 12),

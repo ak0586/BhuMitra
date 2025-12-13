@@ -12,6 +12,8 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import '../../core/ad_manager.dart';
 
 class AreaResultScreen extends ConsumerStatefulWidget {
   const AreaResultScreen({super.key});
@@ -49,18 +51,52 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
   bool _hasManuallySaved = false;
   bool _canPop = false;
 
+  BannerAd? _bannerAd;
+  bool _isBannerAdLoaded = false;
+
+  void _loadBannerAd() {
+    _bannerAd = AdManager().loadBannerAd(
+      onAdLoaded: (ad) {
+        if (mounted) {
+          setState(() {
+            _isBannerAdLoaded = true;
+          });
+        }
+      },
+      onAdFailedToLoad: (ad, error) {
+        if (mounted) {
+          setState(() {
+            _isBannerAdLoaded = false;
+            _bannerAd = null;
+          });
+        }
+      },
+    );
+  }
+
+  void _executeWithAd(VoidCallback action) {
+    AdManager().showRewardedAd(
+      onUserEarnedReward: action,
+      onAdDismissed: action,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
     // Load default unit from settings
     _selectedDisplayUnit = ref.read(defaultUnitProvider);
     _loadSavedCustomUnit();
+    AdManager().initialize();
+    _loadBannerAd();
+    AdManager().loadRewardedAd();
   }
 
   @override
   void dispose() {
     _unitNameController.dispose();
     _conversionValueController.dispose();
+    _bannerAd?.dispose();
     super.dispose();
   }
 
@@ -837,37 +873,49 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
             onPressed: () => _handleBackNavigation(),
           ),
         ),
-        body: SingleChildScrollView(
-          child: Column(
-            children: [
-              // Success Banner
-              _buildSuccessBanner(),
-
-              // Content
-              Padding(
-                padding: const EdgeInsets.all(16),
+        body: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Primary Area Units Card
-                    _buildPrimaryAreaCard(),
+                    // Success Banner
+                    _buildSuccessBanner(),
 
-                    const SizedBox(height: 24),
+                    // Content
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Primary Area Units Card
+                          _buildPrimaryAreaCard(),
 
-                    // Custom Local Unit Section
-                    _buildCustomLocalUnitSection(),
+                          const SizedBox(height: 24),
 
-                    const SizedBox(height: 24),
+                          // Custom Local Unit Section
+                          _buildCustomLocalUnitSection(),
 
-                    // Action Buttons
-                    _buildActionButtons(),
+                          const SizedBox(height: 24),
 
-                    const SizedBox(height: 16),
+                          // Action Buttons
+                          _buildActionButtons(),
+
+                          const SizedBox(height: 16),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+            if (_isBannerAdLoaded && _bannerAd != null)
+              SizedBox(
+                height: _bannerAd!.size.height.toDouble(),
+                width: _bannerAd!.size.width.toDouble(),
+                child: AdWidget(ad: _bannerAd!),
+              ),
+          ],
         ),
       ),
     );
@@ -1180,7 +1228,7 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
           width: double.infinity,
           height: 50,
           child: ElevatedButton.icon(
-            onPressed: _savePlot,
+            onPressed: () => _executeWithAd(_savePlot),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2E7D32),
               foregroundColor: Colors.white,
@@ -1206,7 +1254,7 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
               child: SizedBox(
                 height: 50,
                 child: OutlinedButton.icon(
-                  onPressed: _generateAndSharePDF,
+                  onPressed: () => _executeWithAd(_generateAndSharePDF),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF2E7D32),
                     side: const BorderSide(color: Color(0xFF2E7D32), width: 2),
