@@ -11,7 +11,7 @@ Welcome to BhuMitra! Follow this step-by-step guide to use the app effectively.
 
 2. HOME SCREEN (Dashboard)
 ------------------------
-This is the main dashboard that appears after login. It contains three main sections:
+This is the main dashboard that appears after login. It contains four main sections:
 
 - **Start Measuring Card:** This is the main card at the top. Click the **"Measure Now"** button here to open the Map and start a new land measurement.
 
