@@ -293,6 +293,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     child: Column(
                       children: [
+                        /*
                         _buildActionItem(
                           Icons.logout,
                           'logout'.tr(ref),
@@ -308,7 +309,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           },
                           isRed: false,
                         ),
+                        */
+                        /*
                         const Divider(height: 1),
+                        */
                         _buildActionItem(
                           Icons.delete_forever,
                           'delete_account'.tr(ref),

@@ -45,10 +45,44 @@ android {
         manifestPlaceholders["adMobAppId"] = envProps["ADMOB_APP_ID_ANDROID"] as String? ?: envProps["app_id"] as String? ?: "ca-app-pub-3940256099942544~3347511713"
     }
 
+    signingConfigs {
+        create("release") {
+            val keystoreFile = envProps["storeFile"] as String?
+            if (keystoreFile != null) {
+                storeFile = file(keystoreFile)
+                storePassword = envProps["storePassword"] as String
+                keyAlias = envProps["keyAlias"] as String
+                keyPassword = envProps["keyPassword"] as String
+            } else {
+                 val keyProps = Properties()
+                 val keyPropsFile = rootProject.file("key.properties")
+                 if (keyPropsFile.exists()) {
+                     keyPropsFile.inputStream().use { keyProps.load(it) }
+                     
+                     val storeFileVal = keyProps["storeFile"] as? String
+                     val storePasswordVal = keyProps["storePassword"] as? String
+                     val keyAliasVal = keyProps["keyAlias"] as? String
+                     val keyPasswordVal = keyProps["keyPassword"] as? String
+
+                     if (storeFileVal == null || storePasswordVal == null || keyAliasVal == null || keyPasswordVal == null) {
+                         throw GradleException("key.properties found but missing required keys: storeFile, storePassword, keyAlias, or keyPassword.")
+                     }
+
+                     storeFile = file(storeFileVal)
+                     storePassword = storePasswordVal
+                     keyAlias = keyAliasVal
+                     keyPassword = keyPasswordVal
+                 } else {
+                     println("Warning: key.properties not found. Release build might fail signing.")
+                 }
+            }
+        }
+    }
+
     buildTypes {
         release {
             // Enable code shrinking, obfuscation, and optimization
-            // Temporarily disabled for testing
+            // Temporarily disabled for testing - Re-enable for Prod if desired
             isMinifyEnabled = false
             isShrinkResources = false
             /*
@@ -57,9 +91,7 @@ android {
                 "proguard-rules.pro"
             )
             */
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     

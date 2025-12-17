@@ -9,6 +9,7 @@ import '../../core/user_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../../core/ad_manager.dart';
+import '../../core/auth_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -32,7 +33,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _loadAds() {
-    AdManager().initialize();
+    // AdManager().initialize(); // Moved to main.dart
     _bannerAd = AdManager().loadBannerAd(
       onAdLoaded: (ad) {
         if (mounted) {
@@ -47,6 +48,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             _isBannerAdLoaded = false;
             _bannerAd = null;
           });
+          /*
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -54,6 +56,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
           );
+          */
         }
       },
     );
@@ -261,6 +264,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           textAlign: TextAlign.center,
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            onPressed: () async {
+              await ref.read(authServiceProvider).signOut();
+              await ref.read(userProfileProvider.notifier).resetProfile();
+              if (context.mounted) {
+                context.go('/login');
+              }
+            },
+          ),
+        ],
       ),
       drawer: _buildDrawer(context),
       body: Column(

@@ -140,10 +140,10 @@ class _HelpScreenState extends ConsumerState<HelpScreen> {
         question: 'faq_custom_units_q'.tr(ref),
         answer: 'faq_custom_units_a'.tr(ref),
       ),
-      FAQItem(
-        question: 'faq_offline_mode_q'.tr(ref),
-        answer: 'faq_offline_mode_a'.tr(ref),
-      ),
+      // FAQItem(
+      //   question: 'faq_offline_mode_q'.tr(ref),
+      //   answer: 'faq_offline_mode_a'.tr(ref),
+      // ),
     ];
 
     return Scaffold(

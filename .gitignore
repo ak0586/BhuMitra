@@ -79,3 +79,5 @@ firebase.json
 # Linux
 **/linux/flutter/generated_plugin_registrant.cc
 **/linux/flutter/generated_plugin_registrant.h
+
+play_store_listing.txt

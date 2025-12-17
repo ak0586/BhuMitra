@@ -28,6 +28,7 @@ import 'core/theme.dart';
 import 'core/localization.dart';
 import 'core/preferences.dart';
 import 'core/connectivity_wrapper.dart';
+import 'core/ad_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,10 +66,15 @@ void main() async {
     );
   }
 
-  // Bypass reCAPTCHA/App Check for testing
-  await FirebaseAuth.instance.setSettings(
-    appVerificationDisabledForTesting: true,
-  );
+  // Initialize Mobile Ads SDK
+  await AdManager().initialize();
+
+  // Bypass reCAPTCHA/App Check for testing (ONLY in Debug mode)
+  if (kDebugMode) {
+    await FirebaseAuth.instance.setSettings(
+      appVerificationDisabledForTesting: true,
+    );
+  }
 
   // Create a temporary ProviderContainer to load settings
   final container = ProviderContainer();

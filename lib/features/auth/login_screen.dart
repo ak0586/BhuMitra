@@ -42,28 +42,76 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (mounted) {
           String errorMessage = e.toString().replaceAll('Exception: ', '');
 
-          // Check if the error message indicates user not found or config error
-          if (errorMessage.contains('No user found') ||
+          // Clear any existing snackbars first
+          ScaffoldMessenger.of(context).clearSnackBars();
+
+          // Check for specific error types
+          if (errorMessage.contains('USER_NOT_FOUND')) {
+            // User doesn't exist in database - show register option
+            final snackBar = SnackBar(
+              content: const Text('Account not found. Please register first.'),
+              action: SnackBarAction(
+                label: 'Register',
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  context.push('/register');
+                },
+              ),
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            );
+            ScaffoldMessenger.of(context).showSnackBar(snackBar);
+
+            // Force dismiss after 3 seconds even if action button is present
+            Future.delayed(const Duration(seconds: 3), () {
+              if (mounted) {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              }
+            });
+          } else if (errorMessage.contains('WRONG_PASSWORD')) {
+            // User exists but password is wrong - no register option
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Incorrect password. Please try again.'),
+                duration: Duration(seconds: 3),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          } else if (errorMessage.contains('No user found') ||
               errorMessage.contains('Account not found') ||
               errorMessage.contains('CONFIGURATION_NOT_FOUND') ||
               errorMessage.contains('Configuration Error') ||
               errorMessage.contains('configuration error')) {
+            // Fallback for user not found scenarios
+            final snackBar = SnackBar(
+              content: const Text('Account not found. Please register first.'),
+              action: SnackBarAction(
+                label: 'Register',
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  context.push('/register');
+                },
+              ),
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            );
+            ScaffoldMessenger.of(context).showSnackBar(snackBar);
+
+            // Force dismiss after 3 seconds
+            Future.delayed(const Duration(seconds: 3), () {
+              if (mounted) {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              }
+            });
+          } else {
+            // For other errors, show the error message
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: const Text(
-                  'Account not found. Please register first.',
-                ),
-                action: SnackBarAction(
-                  label: 'Register',
-                  onPressed: () => context.push('/register'),
-                ),
-                duration: const Duration(seconds: 5),
+                content: Text(errorMessage),
+                duration: const Duration(seconds: 3),
+                behavior: SnackBarBehavior.floating,
               ),
             );
-          } else {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text(errorMessage)));
           }
         }
       } finally {
@@ -95,13 +143,100 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     } catch (e) {
       if (mounted) {
+        // Clear any existing snackbars
+        ScaffoldMessenger.of(context).clearSnackBars();
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            duration: const Duration(seconds: 3),
+          ),
         );
       }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _handlePasswordReset(String email) async {
+    if (!mounted) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      await ref
+          .read(authServiceProvider)
+          .sendPasswordResetEmail(email)
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw Exception(
+                'Request timeout. Please check your internet connection.',
+              );
+            },
+          );
+
+      if (mounted) {
+        // Clear any existing snackbars
+        ScaffoldMessenger.of(context).clearSnackBars();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Password reset email sent! Check your inbox.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        String errorMessage = e.toString().replaceAll('Exception: ', '');
+
+        if (errorMessage.contains('network') ||
+            errorMessage.contains('timeout')) {
+          errorMessage = 'Network error. Please check your connection.';
+        }
+
+        // Clear any existing snackbars
+        ScaffoldMessenger.of(context).clearSnackBars();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _showForgotPasswordDialog() async {
+    // Pre-fill if email is already entered in the main form
+    String? initialEmail;
+    if (_emailController.text.isNotEmpty) {
+      initialEmail = _emailController.text;
+    }
+
+    if (!mounted) return;
+
+    final result = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _ForgotPasswordDialog(initialEmail: initialEmail),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      // Small delay to ensure any previous dialog focus is cleared
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (mounted) {
+        await _handlePasswordReset(result);
       }
     }
   }
@@ -205,6 +340,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       return null;
                     },
                   ),
+                  const SizedBox(height: 8),
+
+                  // Forgot Password
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _showForgotPasswordDialog,
+                      child: const Text('Forgot Password?'),
+                    ),
+                  ),
+
                   const SizedBox(height: 24),
 
                   // Login Button
@@ -268,6 +414,85 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ForgotPasswordDialog extends StatefulWidget {
+  final String? initialEmail;
+
+  const _ForgotPasswordDialog({this.initialEmail});
+
+  @override
+  State<_ForgotPasswordDialog> createState() => _ForgotPasswordDialogState();
+}
+
+class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
+  late final TextEditingController _emailController;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController(text: widget.initialEmail);
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Reset Password'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Enter your email address to receive a password reset link.',
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _emailController,
+            decoration: const InputDecoration(
+              labelText: 'Email',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.email_outlined),
+            ),
+            keyboardType: TextInputType.emailAddress,
+            autofocus: true,
+            textInputAction: TextInputAction.send,
+            onSubmitted: (value) {
+              if (value.trim().isNotEmpty) {
+                Navigator.pop(context, value.trim());
+              }
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final email = _emailController.text.trim();
+            if (email.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Please enter your email'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+              return;
+            }
+            Navigator.pop(context, email);
+          },
+          child: const Text('Send Link'),
+        ),
+      ],
     );
   }
 }

@@ -198,7 +198,7 @@ const Map<String, Map<String, String>> translations = {
     // FAQ Questions
     'faq_mark_boundaries_q': 'How to mark land boundaries?',
     'faq_mark_boundaries_a':
-        'You can mark boundaries using two modes:\n\n• Pin Mode: Tap on the map to place markers at each corner\n• Walk Mode: Walk around your land with GPS tracking',
+        'You can mark boundaries by Tap on the map to place markers at each corner of land.\n',
     'faq_area_units_q': 'Understanding area units',
     'faq_area_units_a':
         'BhuMitra supports multiple units:\n\n• Square Feet (sq ft)\n• Square Meters (sq m)\n• Square Yards (sq yd)\n• Acre\n• Hectare\n\nYou can also define custom local units like Bigha, Katha, Guntha.',
@@ -211,9 +211,9 @@ const Map<String, Map<String, String>> translations = {
     'faq_custom_units_q': 'Using custom local units',
     'faq_custom_units_a':
         'To define custom units:\n\n1. Go to the Result Screen after measurement\n2. Find the "Custom Local Unit" section\n3. Enter your unit name (e.g., Bigha)\n4. Enter conversion factor\n5. Select base unit\n6. Click Calculate',
-    'faq_offline_mode_q': 'Offline mode',
-    'faq_offline_mode_a':
-        'BhuMitra can work offline:\n\n• Enable offline mode in Settings\n• Maps will be cached for offline use\n• All measurements work without internet\n• Data syncs when online',
+    // 'faq_offline_mode_q': 'Offline mode',
+    // 'faq_offline_mode_a':
+    //     'BhuMitra can work offline:\n\n• Enable offline mode in Settings\n• Maps will be cached for offline use\n• All measurements work without internet\n• Data syncs when online',
 
     // User Guide Screen
     'user_guide': 'User Guide',
@@ -449,7 +449,7 @@ const Map<String, Map<String, String>> translations = {
     // FAQ Questions
     'faq_mark_boundaries_q': 'भूमि सीमाओं को कैसे चिह्नित करें?',
     'faq_mark_boundaries_a':
-        'आप दो मोड का उपयोग करके सीमाओं को चिह्नित कर सकते हैं:\n\n• पिन मोड: प्रत्येक कोने पर मार्कर रखने के लिए मानचित्र पर टैप करें\n• वॉक मोड: GPS ट्रैकिंग के साथ अपनी भूमि के चारों ओर चलें',
+        'आप नक्शे पर टैप करके भूमि के प्रत्येक कोने पर मार्कर लगाकर सीमाएँ चिन्हित कर सकते हैं।',
     'faq_area_units_q': 'क्षेत्रफल इकाइयों को समझना',
     'faq_area_units_a':
         'BhuMitra कई इकाइयों का समर्थन करता है:\n\n• वर्ग फुट (sq ft)\n• वर्ग मीटर (sq m)\n• वर्ग गज (sq yd)\n• एकड़\n• हेक्टेयर\n\nआप बीघा, कठा, गुंठा जैसी कस्टम स्थानीय इकाइयों को भी परिभाषित कर सकते हैं।',
@@ -462,9 +462,9 @@ const Map<String, Map<String, String>> translations = {
     'faq_custom_units_q': 'कस्टम स्थानीय इकाइयों का उपयोग',
     'faq_custom_units_a':
         'कस्टम इकाइयों को परिभाषित करने के लिए:\n\n1. माप के बाद परिणाम स्क्रीन पर जाएं\n2. "कस्टम स्थानीय इकाई" अनुभाग खोजें\n3. अपनी इकाई का नाम दर्ज करें (उदा., बीघा)\n4. रूपांतरण कारक दर्ज करें\n5. आधार इकाई चुनें\n6. गणना करें पर क्लिक करें',
-    'faq_offline_mode_q': 'ऑफ़लाइन मोड',
-    'faq_offline_mode_a':
-        'BhuMitra ऑफ़लाइन काम कर सकता है:\n\n• सेटिंग्स में ऑफ़लाइन मोड सक्षम करें\n• मानचित्र ऑफ़लाइन उपयोग के लिए कैश किए जाएंगे\n• सभी माप इंटरनेट के बिना काम करते हैं\n• ऑनलाइन होने पर डेटा सिंक होता है',
+    // 'faq_offline_mode_q': 'ऑफ़लाइन मोड',
+    // 'faq_offline_mode_a':
+    //     'BhuMitra ऑफ़लाइन काम कर सकता है:\n\n• सेटिंग्स में ऑफ़लाइन मोड सक्षम करें\n• मानचित्र ऑफ़लाइन उपयोग के लिए कैश किए जाएंगे\n• सभी माप इंटरनेट के बिना काम करते हैं\n• ऑनलाइन होने पर डेटा सिंक होता है',
 
     // User Guide Screen
     'user_guide': 'उपयोगकर्ता गाइड',
