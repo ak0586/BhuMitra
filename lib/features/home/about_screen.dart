@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/localization.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class AboutScreen extends ConsumerWidget {
   const AboutScreen({super.key});
@@ -33,9 +34,16 @@ class AboutScreen extends ConsumerWidget {
               style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            Text(
-              '${'version'.tr(ref)} 1.0.0',
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
+            FutureBuilder<PackageInfo>(
+              future: PackageInfo.fromPlatform(),
+              builder: (context, snapshot) {
+                final version = snapshot.data?.version ?? '...';
+                final buildNumber = snapshot.data?.buildNumber ?? '';
+                return Text(
+                  '${'version'.tr(ref)} $version+$buildNumber',
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                );
+              },
             ),
             const SizedBox(height: 32),
             Card(

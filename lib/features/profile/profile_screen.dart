@@ -7,6 +7,7 @@ import '../../core/saved_plots_provider.dart';
 import '../../core/localization.dart';
 import '../../core/auth_service.dart';
 import '../../core/ad_manager.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -327,9 +328,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: 24),
 
                   // App Version
-                  const Text(
-                    'BhuMitra v1.0.0',
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  FutureBuilder<PackageInfo>(
+                    future: PackageInfo.fromPlatform(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return const SizedBox.shrink();
+                      final version = snapshot.data?.version ?? '...';
+                      final buildNumber = snapshot.data?.buildNumber ?? '';
+                      return Text(
+                        'BhuMitra v$version+$buildNumber',
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 32),
