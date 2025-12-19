@@ -80,6 +80,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         'dark_mode_desc'.tr(ref),
                         darkModeProvider,
                       ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey[800]
+                                : Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.language,
+                            color: Color(0xFF2E7D32),
+                            size: 20,
+                          ),
+                        ),
+                        title: Text('select_language'.tr(ref)),
+                        subtitle: Text(
+                          ref.watch(localeProvider).languageCode == 'en'
+                              ? 'English'
+                              : 'हिंदी',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        trailing: DropdownButton<String>(
+                          value: ref.watch(localeProvider).languageCode,
+                          underline: Container(),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'en',
+                              child: Text('English'),
+                            ),
+                            DropdownMenuItem(value: 'hi', child: Text('हिंदी')),
+                          ],
+                          onChanged: (String? newValue) {
+                            if (newValue != null) {
+                              ref
+                                  .read(localeProvider.notifier)
+                                  .setLocale(Locale(newValue));
+                            }
+                          },
+                        ),
+                      ),
                     ],
                   ),
                 ),

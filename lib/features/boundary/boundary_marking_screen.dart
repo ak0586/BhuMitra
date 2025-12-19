@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -22,10 +23,12 @@ class BoundaryMarkingScreen extends ConsumerStatefulWidget {
 class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
     with TickerProviderStateMixin {
   final MapController _mapController = MapController();
+  final GlobalKey _mapKey = GlobalKey();
 
   StreamSubscription<Position>? _userLocationSubscription;
   LatLng? _userLocation;
   bool _isZooming = false; // Prevent rapid zoom changes
+  int? _draggingIndex; // Track which point is being dragged
 
   // Zoom constraints
   static const double _minZoom = 3.0;
@@ -350,6 +353,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
         children: [
           // Map
           FlutterMap(
+            key: _mapKey,
             mapController: _mapController,
             options: MapOptions(
               initialCenter: _initialCenter!, // Use user location
@@ -375,7 +379,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
                 maxNativeZoom: 19,
                 maxZoom: _maxZoom,
                 minZoom: _minZoom,
-                retinaMode: true, // Better quality on high-DPI screens
+                retinaMode: false, // Disabled for larger text
                 // Smooth tile transitions to prevent blank screens
                 tileDisplay: const TileDisplay.fadeIn(
                   duration: Duration(milliseconds: 100),
@@ -438,22 +442,70 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
 
               // Markers for points
               MarkerLayer(
-                markers: points.map((point) {
+                markers: points.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final point = entry.value;
+                  final isDragging = _draggingIndex == index;
+
                   return Marker(
                     point: LatLng(point.latitude, point.longitude),
-                    width: 24,
-                    height: 24,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFF3B30),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
-                            blurRadius: 4,
-                          ),
-                        ],
+                    width: isDragging ? 40 : 24, // Scale up when dragging
+                    height: isDragging ? 40 : 24,
+                    child: GestureDetector(
+                      onLongPressStart: (_) {
+                        setState(() {
+                          _draggingIndex = index;
+                        });
+                        // Haptic feedback
+                        // HapticFeedback.selectionClick();
+                      },
+                      onLongPressMoveUpdate: (details) {
+                        if (_draggingIndex == index) {
+                          // Convert detailed screen position to map coordinates
+                          // Note: We need a valid point from the map controller relative to the widget
+                          // This requires the map controller to be ready
+
+                          // Get locally within the map widget using the specific key
+                          final RenderBox? mapBox =
+                              _mapKey.currentContext?.findRenderObject()
+                                  as RenderBox?;
+                          if (mapBox == null) return;
+
+                          final mapOffset = mapBox.localToGlobal(Offset.zero);
+                          final localPosition =
+                              details.globalPosition - mapOffset;
+
+                          // Use the map controller to convert point to LatLng
+                          final newPoint = _mapController.camera.pointToLatLng(
+                            math.Point(localPosition.dx, localPosition.dy),
+                          );
+
+                          ref
+                              .read(boundaryPointsProvider.notifier)
+                              .updatePoint(
+                                index,
+                                newPoint.latitude,
+                                newPoint.longitude,
+                              );
+                        }
+                      },
+                      onLongPressEnd: (_) {
+                        setState(() {
+                          _draggingIndex = null;
+                        });
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF3B30),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );
@@ -475,7 +527,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
             child: FloatingActionButton(
               heroTag: 'recenter',
               onPressed: _isLocating ? null : _recenterMap,
-              backgroundColor: Colors.white,
+              backgroundColor: Theme.of(context).cardColor,
               child: _isLocating
                   ? const SizedBox(
                       width: 24,
@@ -485,7 +537,12 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
                         color: Color(0xFF2E7D32),
                       ),
                     )
-                  : const Icon(Icons.my_location, color: Color(0xFF2E7D32)),
+                  : Icon(
+                      Icons.my_location,
+                      color:
+                          Theme.of(context).iconTheme.color ??
+                          const Color(0xFF2E7D32),
+                    ),
             ),
           ),
 
@@ -497,8 +554,13 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
               heroTag: 'zoom_in',
               mini: true,
               onPressed: _isZooming ? null : () => _handleZoom(true),
-              backgroundColor: Colors.white,
-              child: const Icon(Icons.add, color: Color(0xFF2E7D32)),
+              backgroundColor: Theme.of(context).cardColor,
+              child: Icon(
+                Icons.add,
+                color:
+                    Theme.of(context).iconTheme.color ??
+                    const Color(0xFF2E7D32),
+              ),
             ),
           ),
 
@@ -510,8 +572,13 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
               heroTag: 'zoom_out',
               mini: true,
               onPressed: _isZooming ? null : () => _handleZoom(false),
-              backgroundColor: Colors.white,
-              child: const Icon(Icons.remove, color: Color(0xFF2E7D32)),
+              backgroundColor: Theme.of(context).cardColor,
+              child: Icon(
+                Icons.remove,
+                color:
+                    Theme.of(context).iconTheme.color ??
+                    const Color(0xFF2E7D32),
+              ),
             ),
           ),
 
@@ -544,14 +611,16 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
             Row(
               children: [
                 Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.arrow_back,
-                      color: Color(0xFF2E7D32),
+                      color:
+                          Theme.of(context).iconTheme.color ??
+                          const Color(0xFF2E7D32),
                     ),
                     onPressed: () => context.pop(),
                   ),
@@ -561,7 +630,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
                   child: Container(
                     height: 48,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
@@ -575,11 +644,17 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
                       controller: _searchController,
                       textInputAction: TextInputAction.search,
                       onSubmitted: _searchLocation,
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                      ),
                       decoration: InputDecoration(
                         hintText: 'Search location...',
-                        prefixIcon: const Icon(
+                        hintStyle: TextStyle(
+                          color: Theme.of(context).hintColor,
+                        ),
+                        prefixIcon: Icon(
                           Icons.search,
-                          color: Colors.grey,
+                          color: Theme.of(context).hintColor,
                         ),
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(
@@ -587,7 +662,10 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
                           vertical: 14,
                         ),
                         suffixIcon: IconButton(
-                          icon: const Icon(Icons.clear, color: Colors.grey),
+                          icon: Icon(
+                            Icons.clear,
+                            color: Theme.of(context).hintColor,
+                          ),
                           onPressed: () {
                             _searchController.clear();
                           },
@@ -613,7 +691,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
@@ -626,16 +704,22 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
         child: DropdownButtonHideUnderline(
           child: DropdownButton<String>(
             value: mapType,
-            icon: const Icon(Icons.layers, color: Color(0xFF2E7D32)),
+            dropdownColor: Theme.of(context).cardColor,
+            icon: Icon(
+              Icons.layers,
+              color:
+                  Theme.of(context).iconTheme.color ?? const Color(0xFF2E7D32),
+            ),
             items: ['Normal', 'Satellite']
                 .map(
                   (type) => DropdownMenuItem(
                     value: type,
                     child: Text(
                       type,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
                       ),
                     ),
                   ),
@@ -660,7 +744,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
@@ -672,10 +756,21 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.push_pin, color: Color(0xFF2E7D32), size: 20),
-            SizedBox(width: 8),
-            Text('Pin Mode', style: TextStyle(fontWeight: FontWeight.w600)),
+          children: [
+            Icon(
+              Icons.push_pin,
+              color:
+                  Theme.of(context).iconTheme.color ?? const Color(0xFF2E7D32),
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Pin Mode',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).textTheme.bodyMedium?.color,
+              ),
+            ),
           ],
         ),
       ),
@@ -698,7 +793,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8),
@@ -706,7 +801,10 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
             ),
             child: Text(
               '$pointCount point${pointCount != 1 ? 's' : ''}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).textTheme.bodyMedium?.color,
+              ),
             ),
           ),
 
@@ -720,8 +818,12 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
                       .read(boundaryPointsProvider.notifier)
                       .removeLastPoint()
                 : null,
-            backgroundColor: Colors.white,
-            child: const Icon(Icons.undo, color: Color(0xFF2E7D32)),
+            backgroundColor: Theme.of(context).cardColor,
+            child: Icon(
+              Icons.undo,
+              color:
+                  Theme.of(context).iconTheme.color ?? const Color(0xFF2E7D32),
+            ),
           ),
 
           const SizedBox(height: 12),
@@ -732,7 +834,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
             onPressed: pointCount > 0
                 ? () => ref.read(boundaryPointsProvider.notifier).clearPoints()
                 : null,
-            backgroundColor: Colors.white,
+            backgroundColor: Theme.of(context).cardColor,
             child: const Icon(Icons.clear, color: Colors.red),
           ),
 

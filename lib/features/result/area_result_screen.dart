@@ -862,10 +862,10 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
         _handleBackNavigation();
       },
       child: Scaffold(
-        backgroundColor: Colors.grey[50],
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF2E7D32),
-          foregroundColor: Colors.white,
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
           title: const Text('Area Calculation Result'),
           elevation: 0,
           leading: IconButton(
@@ -923,7 +923,7 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
 
   Widget _buildSuccessBanner() {
     return Container(
-      color: Colors.white,
+      color: Theme.of(context).cardColor,
       padding: const EdgeInsets.symmetric(vertical: 20),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -938,10 +938,10 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
             child: const Icon(Icons.check, color: Colors.white, size: 16),
           ),
           const SizedBox(width: 12),
-          const Text(
+          Text(
             'Area Calculated Successfully',
             style: TextStyle(
-              color: Color(0xFF2E7D32),
+              color: Theme.of(context).colorScheme.primary,
               fontSize: 16,
               fontWeight: FontWeight.w500,
             ),
@@ -978,8 +978,12 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
             DropdownButton<String>(
               value: _selectedDisplayUnit,
               isDense: true,
-              style: const TextStyle(fontSize: 16, color: Colors.black87),
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+              ),
               underline: Container(),
+              dropdownColor: Theme.of(context).cardColor,
               items: _conversionFactors.keys.map((String unit) {
                 return DropdownMenuItem<String>(value: unit, child: Text(unit));
               }).toList(),
@@ -1025,14 +1029,17 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 16, color: Colors.black87),
+          style: TextStyle(
+            fontSize: 16,
+            color: Theme.of(context).textTheme.bodyMedium?.color,
+          ),
         ),
         Text(
           displayValue,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: Colors.black87,
+            color: Theme.of(context).textTheme.bodyMedium?.color,
           ),
         ),
       ],
@@ -1043,12 +1050,12 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Custom Local Unit',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
           ),
         ),
 
@@ -1074,7 +1081,7 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     filled: true,
-                    fillColor: Colors.grey[50],
+                    fillColor: Theme.of(context).inputDecorationTheme.fillColor,
                   ),
                 ),
 
@@ -1098,7 +1105,9 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           filled: true,
-                          fillColor: Colors.grey[50],
+                          fillColor: Theme.of(
+                            context,
+                          ).inputDecorationTheme.fillColor,
                         ),
                       ),
                     ),
@@ -1121,7 +1130,9 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           filled: true,
-                          fillColor: Colors.grey[50],
+                          fillColor: Theme.of(
+                            context,
+                          ).inputDecorationTheme.fillColor,
                         ),
                         isDense: true, // Reduce height
                         items: _conversionFactors.keys.map((String unit) {
@@ -1173,7 +1184,7 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: const Color(0xFF2E7D32),
@@ -1279,7 +1290,9 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
                 child: OutlinedButton.icon(
                   onPressed: _handleBackNavigation,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.grey[700],
+                    foregroundColor: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.color,
                     side: BorderSide(color: Colors.grey[400]!, width: 1),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

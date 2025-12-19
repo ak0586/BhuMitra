@@ -44,6 +44,21 @@ class BoundaryPointsNotifier extends StateNotifier<List<BoundaryPoint>> {
     state = [];
   }
 
+  void updatePoint(int index, double lat, double lng) {
+    if (index >= 0 && index < state.length) {
+      final oldPoint = state[index];
+      final newPoint = BoundaryPoint(
+        latitude: lat,
+        longitude: lng,
+        id: oldPoint.id,
+      );
+
+      final newState = [...state];
+      newState[index] = newPoint;
+      state = newState;
+    }
+  }
+
   List<LatLng> toLatLngList() {
     return state.map((p) => LatLng(p.latitude, p.longitude)).toList();
   }

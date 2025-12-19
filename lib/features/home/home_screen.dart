@@ -32,6 +32,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _loadAds();
   }
 
+  Future<void> _handleLogout(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('logout'.tr(ref)),
+        content: Text('logout_confirmation'.tr(ref)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('cancel'.tr(ref)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              'logout'.tr(ref),
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    if (!mounted) return;
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      await ref.read(authServiceProvider).signOut();
+      await ref.read(userProfileProvider.notifier).resetProfile();
+
+      if (mounted) {
+        Navigator.pop(context); // Dismiss loading
+        if (context.mounted) {
+          context.go('/login');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Dismiss loading
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error logging out: $e')));
+      }
+    }
+  }
+
   void _loadAds() {
     // AdManager().initialize(); // Moved to main.dart
     _bannerAd = AdManager().loadBannerAd(
@@ -267,13 +320,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () async {
-              await ref.read(authServiceProvider).signOut();
-              await ref.read(userProfileProvider.notifier).resetProfile();
-              if (context.mounted) {
-                context.go('/login');
-              }
-            },
+            onPressed: () => _handleLogout(context, ref),
           ),
         ],
       ),
@@ -578,24 +625,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
 
           const Divider(),
-          // Language Selector
-          ListTile(
-            leading: const Icon(Icons.language),
-            title: Text('select_language'.tr(ref)),
-            trailing: DropdownButton<String>(
-              value: ref.watch(localeProvider).languageCode,
-              underline: Container(),
-              items: const [
-                DropdownMenuItem(value: 'en', child: Text('English')),
-                DropdownMenuItem(value: 'hi', child: Text('हिंदी')),
-              ],
-              onChanged: (String? newValue) {
-                if (newValue != null) {
-                  ref.read(localeProvider.notifier).setLocale(Locale(newValue));
-                }
-              },
-            ),
-          ),
 
           ListTile(
             leading: const Icon(Icons.feedback_outlined),
@@ -605,7 +634,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               _launchFeedbackEmail();
             },
           ),
-          const Divider(),
+          // const Divider(),
           ListTile(
             leading: const Icon(Icons.info_outline),
             title: Text('about'.tr(ref)),

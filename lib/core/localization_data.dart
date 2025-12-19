@@ -13,6 +13,10 @@ const Map<String, Map<String, String>> translations = {
     'send_feedback': 'Send Feedback',
     'about': 'About BhuMitra',
     'logout': 'Logout',
+    'logout_confirmation': 'Are you sure you want to log out?',
+    'delete_account': 'Delete Account',
+    'delete_account_confirmation':
+        'Are you sure you want to permanently delete your account? This action cannot be undone.',
     'select_language': 'Select Language',
 
     // Common Actions
@@ -263,6 +267,10 @@ const Map<String, Map<String, String>> translations = {
     'send_feedback': 'प्रतिक्रिया भेजें',
     'about': 'भू-मित्र के बारे में',
     'logout': 'लॉग आउट',
+    'logout_confirmation': 'क्या आप लॉग आउट करना चाहते हैं?',
+    'delete_account': 'खाता हटाएं',
+    'delete_account_confirmation':
+        'क्या आप वाकई अपना खाता स्थायी रूप से हटाना चाहते हैं? यह कार्रवाई पूर्ववत नहीं की जा सकती।',
     'select_language': 'भाषा चुनें',
 
     // Common Actions
