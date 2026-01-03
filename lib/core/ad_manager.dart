@@ -164,7 +164,7 @@ class AdManager {
         print('Warning: attempt to show rewarded ad before loaded.');
       }
       loadRewardedAd(); // Try loading for next time
-      onUserEarnedReward(); // Fallback: let user proceed if ad isn't ready
+      onAdDismissed?.call(); // Fallback: let user proceed if ad isn't ready
       return;
     }
 
@@ -188,7 +188,7 @@ class AdManager {
         }
         ad.dispose();
         loadRewardedAd(); // Preload next one
-        onUserEarnedReward(); // Fallback
+        onAdDismissed?.call(); // Fallback
       },
     );
 

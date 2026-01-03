@@ -16,6 +16,8 @@ class _UnitConverterScreenState extends ConsumerState<UnitConverterScreen> {
   String _fromUnit = 'Square Feet';
   BannerAd? _bannerAd;
   bool _isBannerAdLoaded = false;
+  NativeAd? _nativeAd;
+  bool _isNativeAdLoaded = false;
 
   @override
   void initState() {
@@ -37,6 +39,24 @@ class _UnitConverterScreenState extends ConsumerState<UnitConverterScreen> {
           setState(() {
             _isBannerAdLoaded = false;
             _bannerAd = null;
+          });
+        }
+      },
+    );
+
+    _nativeAd = AdManager().loadNativeAd(
+      onAdLoaded: (ad) {
+        if (mounted) {
+          setState(() {
+            _isNativeAdLoaded = true;
+          });
+        }
+      },
+      onAdFailedToLoad: (ad, error) {
+        if (mounted) {
+          setState(() {
+            _isNativeAdLoaded = false;
+            _nativeAd = null;
           });
         }
       },
@@ -293,6 +313,15 @@ class _UnitConverterScreenState extends ConsumerState<UnitConverterScreen> {
                       ),
                     ),
 
+                  if (_isNativeAdLoaded && _nativeAd != null) ...[
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      height: 300,
+                      width: double.infinity,
+                      child: AdWidget(ad: _nativeAd!),
+                    ),
+                  ],
+
                   // All Conversions Grid
                   if (_allConversions != null) ...[
                     const SizedBox(height: 24),
@@ -396,6 +425,7 @@ class _UnitConverterScreenState extends ConsumerState<UnitConverterScreen> {
   void dispose() {
     _inputController.dispose();
     _bannerAd?.dispose();
+    _nativeAd?.dispose();
     super.dispose();
   }
 }

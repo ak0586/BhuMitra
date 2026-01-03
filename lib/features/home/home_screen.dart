@@ -30,6 +30,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     _initializeLocation();
     _loadAds();
+    AdManager().loadRewardedAd();
   }
 
   Future<void> _handleLogout(BuildContext context, WidgetRef ref) async {
@@ -564,7 +565,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () => context.push('/boundary'),
+              onPressed: () {
+                AdManager().showRewardedAd(
+                  onUserEarnedReward: () {
+                    // Reward earned, navigation happens on dismiss
+                  },
+                  onAdDismissed: () {
+                    if (context.mounted) {
+                      context.push('/boundary');
+                    }
+                  },
+                );
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: const Color(0xFF2E7D32),

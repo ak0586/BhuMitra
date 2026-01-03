@@ -75,6 +75,7 @@ class _SavedPlotsScreenState extends ConsumerState<SavedPlotsScreen> {
     Future.microtask(() => ref.read(savedPlotsProvider.notifier).loadPlots());
     _loadBannerAd();
     _loadNativeAd();
+    AdManager().loadRewardedAd();
   }
 
   @override
@@ -887,7 +888,16 @@ class _PlotCard extends ConsumerWidget {
               ),
               Expanded(
                 child: TextButton.icon(
-                  onPressed: () => _sharePlot(context, ref),
+                  onPressed: () {
+                    AdManager().showRewardedAd(
+                      onUserEarnedReward: () {
+                        // Logic on dismiss
+                      },
+                      onAdDismissed: () {
+                        _sharePlot(context, ref);
+                      },
+                    );
+                  },
                   icon: const Icon(Icons.share),
                   label: const Text('Share'),
                 ),

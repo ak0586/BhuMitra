@@ -11,6 +11,7 @@ import '../../core/location_helper.dart';
 import '../../core/preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import '../../core/ad_manager.dart';
 
 class BoundaryMarkingScreen extends ConsumerStatefulWidget {
   const BoundaryMarkingScreen({super.key});
@@ -34,6 +35,16 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
   static const double _minZoom = 3.0;
   static const double _maxZoom = 25.0;
 
+  // Selected unit for real-time display
+  String _selectedUnit = 'Sq Feet';
+  final List<String> _availableUnits = [
+    'Sq Feet',
+    'Sq Meter',
+    'Sq Yard',
+    'Acre',
+    'Hectare',
+  ];
+
   // Map tile URLs for different types
   final Map<String, String> _mapTileUrls = {
     'Normal': 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -48,6 +59,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
   void initState() {
     super.initState();
     _initializeLocation();
+    AdManager().loadRewardedAd();
   }
 
   Future<void> _initializeLocation() async {
@@ -134,6 +146,25 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
         return;
       }
 
+      // Show rewarded ad before calculating
+      AdManager().showRewardedAd(
+        onUserEarnedReward: () {
+          // Reward earned, navigation happens on dismiss
+        },
+        onAdDismissed: () {
+          _performCalculation(points);
+        },
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+    }
+  }
+
+  void _performCalculation(List<LatLng> points) {
+    if (!mounted) return;
+    try {
       // Calculate area using turf
       final areaInSqM = AreaCalculator.calculateAreaInSquareMeters(points);
 
@@ -156,9 +187,8 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
       // Navigate to result screen
       context.push('/result');
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+      // Handle error if needed
+      debugPrint('Calculation error: $e');
     }
   }
 
@@ -392,9 +422,10 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
                   polygons: [
                     Polygon(
                       points: latLngPoints,
-                      color: const Color(0xFF66BB6A).withOpacity(0.2),
+                      color: const Color(0xFF66BB6A).withOpacity(0.4),
                       borderColor: const Color(0xFF2E7D32),
                       borderStrokeWidth: 3,
+                      isFilled: true,
                     ),
                   ],
                 ),
@@ -511,6 +542,19 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
                   );
                 }).toList(),
               ),
+
+              // Area Label at Center
+              if (points.length >= 3)
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: _calculateCenter(latLngPoints),
+                      width: 150,
+                      height: 60,
+                      child: _buildAreaLabel(latLngPoints),
+                    ),
+                  ],
+                ),
             ],
           ),
 
@@ -519,6 +563,9 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
 
           // Map Type Dropdown (Top Right)
           _buildMapTypeDropdown(),
+
+          // Unit Selector (Top Left) - Replaces Pin Mode Label
+          _buildUnitSelector(),
 
           // Recenter Button
           Positioned(
@@ -582,12 +629,63 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
             ),
           ),
 
-          // Pin Mode Label
-          _buildModeLabel(),
-
           // Mode Controls
           _buildModeControls(points.length),
         ],
+      ),
+    );
+  }
+
+  LatLng _calculateCenter(List<LatLng> points) {
+    if (points.isEmpty) return const LatLng(0, 0);
+    double latSum = 0;
+    double lngSum = 0;
+    for (var p in points) {
+      latSum += p.latitude;
+      lngSum += p.longitude;
+    }
+    return LatLng(latSum / points.length, lngSum / points.length);
+  }
+
+  Widget _buildAreaLabel(List<LatLng> points) {
+    final areaSqM = AreaCalculator.calculateAreaInSquareMeters(points);
+    String displayedArea = '';
+
+    switch (_selectedUnit) {
+      case 'Sq Meter':
+        displayedArea = '${AreaCalculator.formatArea(areaSqM)} sq m';
+        break;
+      case 'Sq Feet':
+        displayedArea = '${AreaCalculator.formatArea(areaSqM * 10.764)} sq ft';
+        break;
+      case 'Sq Yard':
+        displayedArea = '${AreaCalculator.formatArea(areaSqM * 1.196)} sq yd';
+        break;
+      case 'Acre':
+        displayedArea = '${(areaSqM * 0.000247105).toStringAsFixed(4)} ac';
+        break;
+      case 'Hectare':
+        displayedArea = '${(areaSqM * 0.0001).toStringAsFixed(4)} ha';
+        break;
+      default:
+        displayedArea = '${AreaCalculator.formatArea(areaSqM)} sq m';
+    }
+
+    return Center(
+      child: Text(
+        displayedArea,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+          shadows: [
+            Shadow(offset: Offset(-1.5, -1.5), color: Colors.black),
+            Shadow(offset: Offset(1.5, -1.5), color: Colors.black),
+            Shadow(offset: Offset(1.5, 1.5), color: Colors.black),
+            Shadow(offset: Offset(-1.5, 1.5), color: Colors.black),
+          ],
+        ),
+        textAlign: TextAlign.center,
       ),
     );
   }
@@ -736,42 +834,57 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
     );
   }
 
-  // Pin mode only - walking mode removed
-  Widget _buildModeLabel() {
+  Widget _buildUnitSelector() {
     return Positioned(
       top: 120,
       left: 16,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.push_pin,
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: _availableUnits.contains(_selectedUnit)
+                ? _selectedUnit
+                : _availableUnits[0],
+            dropdownColor: Theme.of(context).cardColor,
+            icon: Icon(
+              Icons.arrow_drop_down,
               color:
                   Theme.of(context).iconTheme.color ?? const Color(0xFF2E7D32),
-              size: 20,
             ),
-            const SizedBox(width: 8),
-            Text(
-              'Pin Mode',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).textTheme.bodyMedium?.color,
-              ),
-            ),
-          ],
+            items: _availableUnits
+                .map(
+                  (unit) => DropdownMenuItem(
+                    value: unit,
+                    child: Text(
+                      unit,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  _selectedUnit = value;
+                });
+              }
+            },
+          ),
         ),
       ),
     );
