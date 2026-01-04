@@ -20,7 +20,7 @@
 </p>
 
 <p float="left">
-  <img src="screenshots/map_boundary_marking.png" width="200" />
+  <img src="screenshots/map_boundary_marking.jpeg" width="200" />
   <img src="screenshots/area_result.png" width="200" />
   <img src="screenshots/area_result_custom_unit.png" width="200" />
   <img src="screenshots/saved_plots.png" width="200" />
