@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 **BhuMitra** is a comprehensive Flutter application for accurate land area measurement using GPS coordinates and interactive map marking. Designed for farmers, surveyors, and land professionals.
-
+ 
 ---
 
 ## 📱 App Screenshots
@@ -20,7 +20,7 @@
 </p>
 
 <p float="left">
-  <img src="screenshots/map_boundary_marking.png" width="200" />
+  <img src="screenshots/map_boundary_marking.jpeg" width="200" />
   <img src="screenshots/area_result.png" width="200" />
   <img src="screenshots/area_result_custom_unit.png" width="200" />
   <img src="screenshots/saved_plots.png" width="200" />
