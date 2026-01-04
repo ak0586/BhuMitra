@@ -44,20 +44,21 @@
 ## ✨ Features
 
 ### Core Functionality
-- **📍 Pin Mode Marking**: Tap on map to mark boundary points with precision
+- **📍 Precision Mapping**: Calculate area by tapping points or dragging markers to adjust boundaries
 - **🗺️ Interactive Maps**: Flutter Map with OpenStreetMap integration
-- **📏 Area Calculation**: Real-time area calculation using Turf.js algorithms
-- **💾 Save & Share**: Save plots locally and share as PDF reports
-- **🔄 Unit Conversion**: Convert between multiple area units (sq ft, sq m, acres, hectares)
+- **�️ Real-Time Visualization**: High-contrast area overlay with dynamic green fill
+- **💾 Save & Share**: Save plots locally and share as professional PDF reports with vector maps
+- **🔄 Unit Converter**: Seamlessly switch between 5 standard units (Sq Ft, Sq M, Sq Yd, Acre, Hectare)
 - **🌐 Localization**: Full English and Hindi support
 - **🔐 Authentication**: Firebase Auth with email/password and Google Sign-In
 
 ### Advanced Features
+- **💰 Smart Monetization**: Non-intrusive Rewarded Ads for Measure, Calculate, and Share actions
 - **📊 Custom Local Units**: Define and use custom measurement units
-- **📄 PDF Reports**: Generate detailed PDF reports with maps and coordinates
+- **📄 Professional Reports**: Generate detailed PDFs with coordinate tables and brand headers
 - **🎨 Dark Mode**: Full dark theme support
-- **⚡ Offline Support**: Firestore offline persistence with smart caching
-- **🔍 Deep Zoom**: Extended digital zoom support (up to 30x) with smooth animations
+- **⚡ Offline First**: Robust local storage with SharedPreferences and Firestore persistence
+- **🔍 Deep Zoom**: Extended digital zoom support (up to 30x)
 - **📍 GPS Location**: Real-time user location tracking
 
 ## 🚀 Quick Start
@@ -160,6 +161,9 @@ lib/
 - `pdf: ^3.11.1` - PDF generation
 - `share_plus: ^7.2.2` - Share functionality
 - `path_provider: ^2.1.5` - File paths
+
+### Monetization
+- `google_mobile_ads: ^5.0.0` - AdMob integration
 
 ## 🔧 Configuration
 
