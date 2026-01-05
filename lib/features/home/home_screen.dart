@@ -462,6 +462,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           color: const Color(0xFF7B1FA2),
                           onTap: () => context.push('/help'),
                         ),
+
+                        SizedBox(
+                          height: MediaQuery.of(context).padding.bottom + 16,
+                        ),
                       ],
                     ),
                   ),

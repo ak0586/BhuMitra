@@ -157,6 +157,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           'Square Feet',
                           'Square Meters',
                           'Square Yards',
+                          'Sq Kilometer',
                           'Acre',
                           'Hectare',
                         ],
@@ -293,6 +294,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
 
                 const SizedBox(height: 32),
+                SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
               ],
             ),
           ),

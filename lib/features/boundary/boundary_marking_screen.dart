@@ -41,6 +41,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
     'Sq Feet',
     'Sq Meter',
     'Sq Yard',
+    'Sq Kilometer',
     'Acre',
     'Hectare',
   ];
@@ -416,7 +417,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
                 ),
               ),
 
-              // Polygon overlay
+              // Polygon overlay (3+ points)
               if (latLngPoints.length > 2)
                 PolygonLayer(
                   polygons: [
@@ -426,6 +427,18 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
                       borderColor: const Color(0xFF2E7D32),
                       borderStrokeWidth: 3,
                       isFilled: true,
+                    ),
+                  ],
+                ),
+
+              // Polyline overlay (Exactly 2 points) - To show the single edge
+              if (latLngPoints.length == 2)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: latLngPoints,
+                      color: const Color(0xFF2E7D32),
+                      strokeWidth: 3,
                     ),
                   ],
                 ),
@@ -574,7 +587,9 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
           // Recenter Button
           Positioned(
             right: 16,
-            bottom: 195, // Above zoom controls
+            bottom:
+                195 +
+                MediaQuery.of(context).padding.bottom, // Above zoom controls
             child: FloatingActionButton(
               heroTag: 'recenter',
               onPressed: _isLocating ? null : _recenterMap,
@@ -600,7 +615,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
           // Zoom In Button
           Positioned(
             right: 16,
-            bottom: 140,
+            bottom: 140 + MediaQuery.of(context).padding.bottom,
             child: FloatingActionButton(
               heroTag: 'zoom_in',
               mini: true,
@@ -618,7 +633,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
           // Zoom Out Button
           Positioned(
             right: 16,
-            bottom: 90,
+            bottom: 90 + MediaQuery.of(context).padding.bottom,
             child: FloatingActionButton(
               heroTag: 'zoom_out',
               mini: true,
@@ -671,6 +686,9 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
       case 'Hectare':
         displayedArea = '${(areaSqM * 0.0001).toStringAsFixed(4)} ha';
         break;
+      case 'Sq Kilometer':
+        displayedArea = '${(areaSqM * 0.000001).toStringAsFixed(6)} sq km';
+        break;
       default:
         displayedArea = '${AreaCalculator.formatArea(areaSqM)} sq m';
     }
@@ -697,6 +715,11 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
   List<Marker> _buildEdgeDistanceMarkers(List<LatLng> points) {
     if (points.length < 2) return [];
 
+    // Hide warnings for large area units as per user request
+    if (_selectedUnit == 'Acre' || _selectedUnit == 'Hectare') {
+      return [];
+    }
+
     final markers = <Marker>[];
     const distanceCalculator = Distance();
 
@@ -715,17 +738,21 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
       String distText = '';
       switch (_selectedUnit) {
         case 'Sq Meter':
-        case 'Hectare':
+          // case 'Hectare': // Hidden now
           distText = '${distMeters.toStringAsFixed(1)} m';
           break;
         case 'Sq Feet':
-        case 'Acre':
+          // case 'Acre': // Hidden now
           final distFeet = distMeters * 3.28084;
           distText = '${distFeet.toStringAsFixed(1)} ft';
           break;
         case 'Sq Yard':
           final distYards = distMeters * 1.09361;
           distText = '${distYards.toStringAsFixed(1)} yd';
+          break;
+        case 'Sq Kilometer':
+          final distKm = distMeters / 1000.0;
+          distText = '${distKm.toStringAsFixed(3)} km';
           break;
         default:
           distText = '${distMeters.toStringAsFixed(1)} m';
@@ -960,6 +987,17 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
                 setState(() {
                   _selectedUnit = value;
                 });
+
+                if (value == 'Acre' || value == 'Hectare') {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Edge distance hidden for this unit. Switch to Sq Ft/Meter/Yard/Km to view.',
+                      ),
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                }
               }
             },
           ),
@@ -975,7 +1013,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
 
   Widget _buildPinControls(int pointCount) {
     return Positioned(
-      bottom: 25,
+      bottom: 25 + MediaQuery.of(context).padding.bottom,
       right: 16,
       child: Row(
         mainAxisSize: MainAxisSize.min,

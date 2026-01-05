@@ -11,6 +11,9 @@ import 'package:bhumitra/core/localization_data.dart';
 import 'package:bhumitra/core/localization.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../../core/ad_manager.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:turf/turf.dart' as turf;
 
 class SavedPlotsScreen extends ConsumerStatefulWidget {
   const SavedPlotsScreen({super.key});
@@ -192,6 +195,7 @@ class _SavedPlotsScreenState extends ConsumerState<SavedPlotsScreen> {
               width: _bannerAd!.size.width.toDouble(),
               child: AdWidget(ad: _bannerAd!),
             ),
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
         ],
       ),
     );
@@ -801,7 +805,10 @@ class _PlotCard extends ConsumerWidget {
                     color: const Color(0xFF66BB6A).withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: CustomPaint(painter: _MiniMapPainter()),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: _MapThumbnail(coordinates: plot.coordinates),
+                  ),
                 ),
 
                 const SizedBox(width: 16),
@@ -953,36 +960,64 @@ class _PlotCard extends ConsumerWidget {
   }
 }
 
-class _MiniMapPainter extends CustomPainter {
+class _MapThumbnail extends StatelessWidget {
+  final List<List<double>> coordinates;
+
+  const _MapThumbnail({required this.coordinates});
+
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF66BB6A)
-      ..style = PaintingStyle.fill;
+  Widget build(BuildContext context) {
+    if (coordinates.isEmpty) {
+      return Container(
+        color: Colors.grey[200],
+        child: const Icon(Icons.map, color: Colors.grey),
+      );
+    }
 
-    final stroke = Paint()
-      ..color = const Color(0xFF2E7D32)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+    final points = coordinates.map((c) => LatLng(c[0], c[1])).toList();
 
-    final path = Path();
-    path.moveTo(size.width * 0.5, size.height * 0.2);
-    path.lineTo(size.width * 0.8, size.height * 0.4);
-    path.lineTo(size.width * 0.7, size.height * 0.8);
-    path.lineTo(size.width * 0.3, size.height * 0.8);
-    path.lineTo(size.width * 0.2, size.height * 0.4);
-    path.close();
+    // Calculate bounds manually since we accept List<List<double>>
+    double minLat = coordinates[0][0];
+    double maxLat = coordinates[0][0];
+    double minLon = coordinates[0][1];
+    double maxLon = coordinates[0][1];
 
-    canvas.drawPath(path, paint);
-    canvas.drawPath(path, stroke);
+    for (var coord in coordinates) {
+      if (coord[0] < minLat) minLat = coord[0];
+      if (coord[0] > maxLat) maxLat = coord[0];
+      if (coord[1] < minLon) minLon = coord[1];
+      if (coord[1] > maxLon) maxLon = coord[1];
+    }
 
-    // Draw pins
-    final pinPaint = Paint()..color = const Color(0xFFFF3B30);
-    canvas.drawCircle(Offset(size.width * 0.5, size.height * 0.2), 4, pinPaint);
-    canvas.drawCircle(Offset(size.width * 0.8, size.height * 0.4), 4, pinPaint);
-    canvas.drawCircle(Offset(size.width * 0.7, size.height * 0.8), 4, pinPaint);
+    final bounds = LatLngBounds(LatLng(minLat, minLon), LatLng(maxLat, maxLon));
+
+    return FlutterMap(
+      options: MapOptions(
+        initialCameraFit: CameraFit.bounds(
+          bounds: bounds,
+          padding: const EdgeInsets.all(10), // Add padding
+        ),
+        interactionOptions: const InteractionOptions(
+          flags: InteractiveFlag.none,
+        ),
+      ),
+      children: [
+        TileLayer(
+          urlTemplate: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+          userAgentPackageName: 'com.bhumitra.app',
+        ),
+        PolygonLayer(
+          polygons: [
+            Polygon(
+              points: points,
+              color: const Color(0xFF66BB6A).withOpacity(0.5),
+              borderColor: const Color(0xFF2E7D32),
+              borderStrokeWidth: 2,
+              isFilled: true,
+            ),
+          ],
+        ),
+      ],
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

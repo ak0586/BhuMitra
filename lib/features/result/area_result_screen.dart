@@ -45,11 +45,13 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
     'Square Yards': 1.19599005,
     'Acre': 0.00024710538,
     'Hectare': 0.0001,
+    'Sq Kilometer': 0.000001,
   };
 
   // State for navigation and saving
   bool _hasManuallySaved = false;
   bool _canPop = false;
+  bool _isNavigating = false;
 
   BannerAd? _bannerAd;
   bool _isBannerAdLoaded = false;
@@ -523,6 +525,10 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
                       'Hectare',
                       areaResult.hectare.toStringAsFixed(4),
                     ),
+                    _buildPdfTableRow(
+                      'Square Kilometer',
+                      (areaResult.squareMeters * 0.000001).toStringAsFixed(6),
+                    ),
                     // Add custom unit if available
                     if (_customCalculatedArea != null &&
                         _unitNameController.text.isNotEmpty)
@@ -825,8 +831,12 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
 
   Future<void> _handleBackNavigation() async {
     debugPrint(
-      '_handleBackNavigation called. _hasManuallySaved: $_hasManuallySaved, autoSave: ${ref.read(autoSaveProvider)}',
+      '_handleBackNavigation called. _hasManuallySaved: $_hasManuallySaved, autoSave: ${ref.read(autoSaveProvider)}, isNavigating: $_isNavigating',
     );
+
+    if (_isNavigating) return;
+    _isNavigating = true;
+
     // Check if auto-save is enabled and we haven't saved manually
     final autoSave = ref.read(autoSaveProvider);
 
@@ -963,8 +973,13 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
           children: [
             // Main Display Value
             // Main Display Value
+            // Main Display Value
             Text(
-              displayArea.toStringAsFixed(ref.watch(precisionProvider)),
+              displayArea.toStringAsFixed(
+                _selectedDisplayUnit == 'Sq Kilometer'
+                    ? 6
+                    : ref.watch(precisionProvider),
+              ),
               style: const TextStyle(
                 fontSize: 48,
                 fontWeight: FontWeight.bold,
@@ -1014,15 +1029,21 @@ class _AreaResultScreenState extends ConsumerState<AreaResultScreen> {
             _buildPrimaryUnitRow('Acre', _getAreaInUnit('Acre')),
             const SizedBox(height: 12),
             _buildPrimaryUnitRow('Hectare', _getAreaInUnit('Hectare')),
+            const SizedBox(height: 12),
+            _buildPrimaryUnitRow(
+              'Sq Kilometer',
+              _getAreaInUnit('Sq Kilometer'),
+              precision: 6, // Higher precision for small numbers
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPrimaryUnitRow(String label, double value) {
-    final precision = ref.watch(precisionProvider);
-    final displayValue = value.toStringAsFixed(precision);
+  Widget _buildPrimaryUnitRow(String label, double value, {int? precision}) {
+    final int displayPrecision = precision ?? ref.watch(precisionProvider);
+    final displayValue = value.toStringAsFixed(displayPrecision);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

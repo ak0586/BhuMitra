@@ -73,6 +73,7 @@ class _UnitConverterScreenState extends ConsumerState<UnitConverterScreen> {
     'Square Feet',
     'Square Meters',
     'Square Yards',
+    'Square Kilometer',
     'Acre',
     'Hectare',
   ];
@@ -82,6 +83,7 @@ class _UnitConverterScreenState extends ConsumerState<UnitConverterScreen> {
     'Square Feet': 1.0,
     'Square Meters': 10.764,
     'Square Yards': 9.0,
+    'Square Kilometer': 10763910.4,
     'Acre': 43560.0,
     'Hectare': 107639.0,
   };
@@ -406,6 +408,7 @@ class _UnitConverterScreenState extends ConsumerState<UnitConverterScreen> {
                       ],
                     ),
                   ),
+                  SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
                 ],
               ),
             ),
