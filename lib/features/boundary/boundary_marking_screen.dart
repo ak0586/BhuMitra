@@ -543,6 +543,10 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
                 }).toList(),
               ),
 
+              // Edge Distance Markers (New)
+              if (latLngPoints.length > 1)
+                MarkerLayer(markers: _buildEdgeDistanceMarkers(latLngPoints)),
+
               // Area Label at Center
               if (points.length >= 3)
                 MarkerLayer(
@@ -688,6 +692,80 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
         textAlign: TextAlign.center,
       ),
     );
+  }
+
+  List<Marker> _buildEdgeDistanceMarkers(List<LatLng> points) {
+    if (points.length < 2) return [];
+
+    final markers = <Marker>[];
+    const distanceCalculator = Distance();
+
+    // Loop through points to create edges
+    final count = points.length;
+    final edgeCount = count > 2 ? count : count - 1;
+
+    for (int i = 0; i < edgeCount; i++) {
+      final p1 = points[i];
+      final p2 = points[(i + 1) % count];
+
+      // Calculate distance in meters
+      final distMeters = distanceCalculator.as(LengthUnit.Meter, p1, p2);
+
+      // Convert and format based on selected unit
+      String distText = '';
+      switch (_selectedUnit) {
+        case 'Sq Meter':
+        case 'Hectare':
+          distText = '${distMeters.toStringAsFixed(1)} m';
+          break;
+        case 'Sq Feet':
+        case 'Acre':
+          final distFeet = distMeters * 3.28084;
+          distText = '${distFeet.toStringAsFixed(1)} ft';
+          break;
+        case 'Sq Yard':
+          final distYards = distMeters * 1.09361;
+          distText = '${distYards.toStringAsFixed(1)} yd';
+          break;
+        default:
+          distText = '${distMeters.toStringAsFixed(1)} m';
+      }
+
+      // Calculate midpoint for label
+      final midLat = (p1.latitude + p2.latitude) / 2;
+      final midLng = (p1.longitude + p2.longitude) / 2;
+
+      markers.add(
+        Marker(
+          point: LatLng(midLat, midLng),
+          width: 80,
+          height: 30,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.8),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                distText,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return markers;
   }
 
   Widget _buildTopBar(BuildContext context) {

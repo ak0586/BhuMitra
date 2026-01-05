@@ -30,8 +30,11 @@ import 'core/preferences.dart';
 import 'core/connectivity_wrapper.dart';
 import 'core/ad_manager.dart';
 
+import 'package:flutter/services.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   await dotenv.load(fileName: ".env");
   // Assuming cleanupUnusedAssets() is a function that needs to be defined elsewhere or is a placeholder.
   // For the purpose of this edit, it's added as a call.
