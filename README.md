@@ -30,7 +30,7 @@
   <img src="screenshots/unit_converter.png" width="200" />
   <img src="screenshots/help.png" width="200" />
   <img src="screenshots/sidebar.png" width="200" />
-  <img src="screenshots/profile.png" width="200" />
+  <img src="screenshots/profile.jpeg" width="200" />
 </p>
 
 <p float="left">
