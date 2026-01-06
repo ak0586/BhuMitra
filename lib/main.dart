@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,67 +36,155 @@ import 'package:flutter/services.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  await dotenv.load(fileName: ".env");
-  // Assuming cleanupUnusedAssets() is a function that needs to be defined elsewhere or is a placeholder.
-  // For the purpose of this edit, it's added as a call.
-  // The instruction had "Flutter errors globally" on the same line, which is syntactically incorrect.
-  // It's interpreted as a comment for the following error handling block.
-  // If cleanupUnusedAssets() is not defined, this line will cause a compilation error.
-  // Please ensure cleanupUnusedAssets() is defined or remove this line if it's a placeholder.
-  // For now, it's added as per instruction.
-  // await cleanupUnusedAssets(); // This line is commented out to avoid compilation errors if cleanupUnusedAssets is not defined.
-  // If cleanupUnusedAssets() is a valid function, uncomment the line below.
-  // await cleanupUnusedAssets();
 
-  // Handle Flutter errors globally
+  // Enhanced global error handler to prevent crashes
   FlutterError.onError = (FlutterErrorDetails details) {
-    // For other errors, use default handling
-    FlutterError.presentError(details);
+    if (kDebugMode) {
+      // In debug mode, show detailed errors
+      FlutterError.presentError(details);
+    } else {
+      // In release mode, log errors but don't crash
+      debugPrint('Flutter Error: ${details.exception}');
+      debugPrint('Stack trace: ${details.stack}');
+    }
   };
 
-  // Initialize Firebase first
-  await Firebase.initializeApp();
+  // Catch errors outside Flutter framework
+  PlatformDispatcher.instance.onError = (error, stack) {
+    if (kDebugMode) {
+      debugPrint('Platform Error: $error');
+      debugPrint('Stack trace: $stack');
+    }
+    return true; // Prevent crash
+  };
 
-  // Enable Firestore offline persistence
-  FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
-    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-  );
-
-  // Enable debug mode for App Check (only for development)
-  if (kDebugMode) {
-    await FirebaseAppCheck.instance.activate(
-      androidProvider: AndroidProvider.debug,
-    );
+  try {
+    // Load environment variables with timeout
+    await dotenv
+        .load(fileName: ".env")
+        .timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            if (kDebugMode) {
+              debugPrint('Warning: .env file loading timed out');
+            }
+          },
+        );
+  } catch (e) {
+    if (kDebugMode) {
+      debugPrint('Error loading .env: $e');
+    }
+    // Continue execution - app can work with fallback values
   }
 
-  // Initialize Mobile Ads SDK in background (non-blocking)
-  AdManager().initialize().then((_) {
-    // Preload interstitial ad after AdMob is ready
-    AdManager().loadInterstitialAd();
-  });
-
-  // Bypass reCAPTCHA/App Check for testing (ONLY in Debug mode)
-  if (kDebugMode) {
-    await FirebaseAuth.instance.setSettings(
-      appVerificationDisabledForTesting: true,
+  // Initialize Firebase with error handling and timeout
+  try {
+    await Firebase.initializeApp().timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        throw Exception('Firebase initialization timed out');
+      },
     );
+
+    // Enable Firestore offline persistence
+    try {
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error configuring Firestore: $e');
+      }
+      // Continue - Firestore will work without offline persistence
+    }
+
+    // Enable debug mode for App Check (only for development)
+    if (kDebugMode) {
+      try {
+        await FirebaseAppCheck.instance
+            .activate(androidProvider: AndroidProvider.debug)
+            .timeout(const Duration(seconds: 5));
+      } catch (e) {
+        debugPrint('Error activating App Check: $e');
+      }
+    }
+
+    // Bypass reCAPTCHA/App Check for testing (ONLY in Debug mode)
+    if (kDebugMode) {
+      try {
+        await FirebaseAuth.instance.setSettings(
+          appVerificationDisabledForTesting: true,
+        );
+      } catch (e) {
+        debugPrint('Error configuring Firebase Auth: $e');
+      }
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      debugPrint('Critical: Firebase initialization failed: $e');
+    }
+    // App can still run in limited mode without Firebase
   }
 
-  // Create a temporary ProviderContainer to load settings
-  final container = ProviderContainer();
-  await container.read(darkModeProvider.notifier).loadState();
-  await container.read(offlineModeProvider.notifier).loadState();
-  await container.read(onboardingCompletedProvider.notifier).loadState();
-  await container.read(mapTypeProvider.notifier).loadState();
-  await container.read(defaultUnitProvider.notifier).loadState();
-  container.dispose();
+  // Initialize Mobile Ads SDK in background (non-blocking) with error handling
+  AdManager()
+      .initialize()
+      .timeout(const Duration(seconds: 10))
+      .then((_) {
+        // Preload interstitial ad after AdMob is ready
+        AdManager().loadInterstitialAd();
+      })
+      .catchError((error) {
+        if (kDebugMode) {
+          debugPrint('AdMob initialization failed: $error');
+        }
+        // App continues without ads if initialization fails
+      });
+
+  // Load settings with error handling
+  try {
+    final container = ProviderContainer();
+    await Future.wait([
+      container.read(darkModeProvider.notifier).loadState(),
+      container.read(offlineModeProvider.notifier).loadState(),
+      container.read(onboardingCompletedProvider.notifier).loadState(),
+      container.read(mapTypeProvider.notifier).loadState(),
+      container.read(defaultUnitProvider.notifier).loadState(),
+    ]).timeout(const Duration(seconds: 5));
+    container.dispose();
+  } catch (e) {
+    if (kDebugMode) {
+      debugPrint('Error loading settings: $e');
+    }
+    // App will use default settings if loading fails
+  }
 
   runApp(const ProviderScope(child: BhuMitraApp()));
 }
 
 final _router = GoRouter(
   initialLocation: '/',
+  // Add error handling for navigation failures
+  errorBuilder: (context, state) {
+    if (kDebugMode) {
+      debugPrint('Navigation error: ${state.error}');
+    }
+    // Return to home screen on navigation error
+    return const HomeScreen();
+  },
+  // Add redirect logic with error handling
+  redirect: (context, state) {
+    try {
+      // Add any redirect logic here if needed
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Redirect error: $e');
+      }
+      return '/home';
+    }
+  },
   routes: [
     GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
     GoRoute(
@@ -123,8 +212,16 @@ final _router = GoRouter(
     GoRoute(
       path: '/plot-view',
       builder: (context, state) {
-        final plot = state.extra as SavedPlot;
-        return PlotViewScreen(plot: plot);
+        try {
+          final plot = state.extra as SavedPlot;
+          return PlotViewScreen(plot: plot);
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('Error loading plot: $e');
+          }
+          // Return to saved plots screen on error
+          return const SavedPlotsScreen();
+        }
       },
     ),
     GoRoute(
@@ -185,6 +282,26 @@ class _BhuMitraAppState extends ConsumerState<BhuMitraApp> {
       locale: locale,
       routerConfig: _router,
       builder: (context, child) {
+        // Add error boundary wrapper
+        ErrorWidget.builder = (FlutterErrorDetails details) {
+          if (kDebugMode) {
+            // In debug mode, show detailed error
+            return ErrorWidget(details.exception);
+          } else {
+            // In release mode, show a simple error message
+            return Material(
+              child: Container(
+                color: Colors.white,
+                child: const Center(
+                  child: Text(
+                    'Something went wrong. Please restart the app.',
+                    style: TextStyle(color: Colors.black),
+                  ),
+                ),
+              ),
+            );
+          }
+        };
         return ConnectivityWrapper(child: child!);
       },
     );

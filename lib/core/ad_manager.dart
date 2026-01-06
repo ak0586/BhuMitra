@@ -12,6 +12,8 @@ class AdManager {
   InterstitialAd? _interstitialAd;
   int _numInterstitialLoadAttempts = 0;
   final int maxFailedLoadAttempts = 3;
+  bool _isInitialized = false;
+  DateTime? _lastLoadAttempt;
 
   // Ad Unit IDs from .env
   String get bannerAdUnitId {
@@ -51,7 +53,24 @@ class AdManager {
   }
 
   Future<void> initialize() async {
-    await MobileAds.instance.initialize();
+    try {
+      await MobileAds.instance.initialize().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('AdMob initialization timed out');
+        },
+      );
+      _isInitialized = true;
+      if (kDebugMode) {
+        print('AdMob initialized successfully');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('AdMob initialization error: $e');
+      }
+      _isInitialized = false;
+      rethrow; // Let caller handle the error
+    }
   }
 
   BannerAd loadBannerAd({
@@ -116,6 +135,30 @@ class AdManager {
   }
 
   void loadInterstitialAd() {
+    // Don't load if AdMob is not initialized
+    if (!_isInitialized) {
+      if (kDebugMode) {
+        print('Cannot load ad: AdMob not initialized');
+      }
+      return;
+    }
+
+    // Prevent rapid retry attempts (exponential backoff)
+    if (_lastLoadAttempt != null) {
+      final timeSinceLastAttempt = DateTime.now().difference(_lastLoadAttempt!);
+      final minWaitTime = Duration(
+        seconds: _numInterstitialLoadAttempts * 2, // 0s, 2s, 4s, 6s...
+      );
+      if (timeSinceLastAttempt < minWaitTime) {
+        if (kDebugMode) {
+          print('Skipping ad load - too soon after last attempt');
+        }
+        return;
+      }
+    }
+
+    _lastLoadAttempt = DateTime.now();
+
     InterstitialAd.load(
       adUnitId: interstitialAdUnitId,
       request: const AdRequest(),
@@ -126,6 +169,7 @@ class AdManager {
           }
           _interstitialAd = ad;
           _numInterstitialLoadAttempts = 0;
+          _lastLoadAttempt = null; // Reset on success
         },
         onAdFailedToLoad: (LoadAdError error) {
           if (kDebugMode) {
@@ -133,8 +177,20 @@ class AdManager {
           }
           _interstitialAd = null;
           _numInterstitialLoadAttempts += 1;
+
+          // Only retry if under max attempts
           if (_numInterstitialLoadAttempts < maxFailedLoadAttempts) {
-            loadInterstitialAd();
+            // Schedule retry with exponential backoff
+            final retryDelay = Duration(
+              seconds: _numInterstitialLoadAttempts * 2,
+            );
+            Future.delayed(retryDelay, () {
+              loadInterstitialAd();
+            });
+          } else {
+            if (kDebugMode) {
+              print('Max ad load attempts reached. Stopping retries.');
+            }
           }
         },
       ),
@@ -142,39 +198,62 @@ class AdManager {
   }
 
   void showInterstitialAd({VoidCallback? onAdDismissed}) {
+    // Always call the callback, even if ad doesn't show
     if (_interstitialAd == null) {
       if (kDebugMode) {
         print('Warning: attempt to show interstitial ad before loaded.');
       }
+      // Try to load for next time, but don't block user
       loadInterstitialAd();
-      onAdDismissed?.call();
+      // Call callback immediately so user can proceed
+      if (onAdDismissed != null) {
+        // Use Future.microtask to avoid calling callback during build
+        Future.microtask(onAdDismissed);
+      }
       return;
     }
 
-    _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
-      onAdShowedFullScreenContent: (InterstitialAd ad) {
-        if (kDebugMode) {
-          print('$ad onAdShowedFullScreenContent.');
-        }
-      },
-      onAdDismissedFullScreenContent: (InterstitialAd ad) {
-        if (kDebugMode) {
-          print('$ad onAdDismissedFullScreenContent.');
-        }
-        ad.dispose();
-        loadInterstitialAd();
-        onAdDismissed?.call();
-      },
-      onAdFailedToShowFullScreenContent: (InterstitialAd ad, AdError error) {
-        if (kDebugMode) {
-          print('$ad onAdFailedToShowFullScreenContent: $error');
-        }
-        ad.dispose();
-        loadInterstitialAd();
-        onAdDismissed?.call();
-      },
-    );
-    _interstitialAd!.show();
-    _interstitialAd = null;
+    try {
+      _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
+        onAdShowedFullScreenContent: (InterstitialAd ad) {
+          if (kDebugMode) {
+            print('$ad onAdShowedFullScreenContent.');
+          }
+        },
+        onAdDismissedFullScreenContent: (InterstitialAd ad) {
+          if (kDebugMode) {
+            print('$ad onAdDismissedFullScreenContent.');
+          }
+          ad.dispose();
+          loadInterstitialAd();
+          if (onAdDismissed != null) {
+            Future.microtask(onAdDismissed);
+          }
+        },
+        onAdFailedToShowFullScreenContent: (InterstitialAd ad, AdError error) {
+          if (kDebugMode) {
+            print('$ad onAdFailedToShowFullScreenContent: $error');
+          }
+          ad.dispose();
+          loadInterstitialAd();
+          if (onAdDismissed != null) {
+            Future.microtask(onAdDismissed);
+          }
+        },
+      );
+      _interstitialAd!.show();
+      _interstitialAd = null;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error showing interstitial ad: $e');
+      }
+      // Dispose and reload on error
+      _interstitialAd?.dispose();
+      _interstitialAd = null;
+      loadInterstitialAd();
+      if (onAdDismissed != null) {
+        Future.microtask(onAdDismissed);
+      }
+    }
   }
 }

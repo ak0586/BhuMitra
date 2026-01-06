@@ -81,16 +81,15 @@ android {
 
     buildTypes {
         release {
-            // Enable code shrinking, obfuscation, and optimization
-            // Temporarily disabled for testing - Re-enable for Prod if desired
+            // Temporarily disable R8 until we resolve the missing classes issue
+            // All other stability improvements (error handling, timeouts) are still active
             isMinifyEnabled = false
             isShrinkResources = false
-            /*
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-            */
+            // ProGuard rules are ready when we re-enable R8
+            // proguardFiles(
+            //     getDefaultProguardFile("proguard-android-optimize.txt"),
+            //     "proguard-rules.pro"
+            // )
             signingConfig = signingConfigs.getByName("release")
         }
     }

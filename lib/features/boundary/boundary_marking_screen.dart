@@ -67,13 +67,16 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
     // Default fallback: Sector 10, Gurgaon
     var startLocation = const LatLng(28.4595, 77.0266);
     bool locationFound = false;
+    dynamic cachedLoc; // Declare outside to use later
 
     // 1. Try to load from cache first for immediate display
-    await ref.read(cachedLocationProvider.notifier).loadState();
-    final cachedLoc = ref.read(cachedLocationProvider);
-    if (cachedLoc != null) {
-      startLocation = LatLng(cachedLoc.lat, cachedLoc.lng);
-      locationFound = true;
+    if (mounted) {
+      await ref.read(cachedLocationProvider.notifier).loadState();
+      cachedLoc = ref.read(cachedLocationProvider);
+      if (cachedLoc != null) {
+        startLocation = LatLng(cachedLoc.lat, cachedLoc.lng);
+        locationFound = true;
+      }
     }
 
     if (mounted) {
@@ -89,7 +92,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
       final status = await LocationHelper.requestLocationPermission();
       if (status == LocationPermissionStatus.granted) {
         final position = await LocationHelper.getCurrentPosition();
-        if (position != null) {
+        if (position != null && mounted) {
           final newLoc = LatLng(position.latitude, position.longitude);
 
           // Move map to actual location if it differs significantly or if we were using fallback
@@ -102,13 +105,17 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
             }
           }
 
-          // Update cache
-          ref
-              .read(cachedLocationProvider.notifier)
-              .setLocation(position.latitude, position.longitude);
+          // Update cache only if widget is still mounted
+          if (mounted) {
+            ref
+                .read(cachedLocationProvider.notifier)
+                .setLocation(position.latitude, position.longitude);
+          }
         }
         // Start tracking user location for blue dot
-        _startUserLocationTracking();
+        if (mounted) {
+          _startUserLocationTracking();
+        }
       }
     } catch (e) {
       debugPrint('Error getting fresh location: $e');
