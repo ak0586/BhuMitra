@@ -46,11 +46,12 @@
 ### Core Functionality
 - **📍 Precision Mapping**: Calculate area by tapping points or dragging markers to adjust boundaries
 - **🗺️ Interactive Maps**: Flutter Map with OpenStreetMap integration
-- **📏 Edge Distance Labels**: View precise distances between boundary points directly on the map
-- **📐 Auto-Unit Conversion**: Distances automatically adapt to Meters, Feet, or Yards based on selection
+- **📏 Edge Distance Labels**: View precise distances (m, km, ft, yd) between boundary points
+- **📐 Auto-Unit Conversion**: Distances automatically adapt based on unit selection
+- **👁️ Visual Saved Plots**: Real satellite map thumbnails for easier identification of saved records
 - **️ Real-Time Visualization**: High-contrast area overlay with dynamic green fill
 - **💾 Save & Share**: Save plots locally and share as professional PDF reports with vector maps
-- **🔄 Unit Converter**: Seamlessly switch between 5 standard units (Sq Ft, Sq M, Sq Yd, Acre, Hectare)
+- **🔄 Unit Converter**: Seamlessly switch between 6 standard units (Sq Ft, Sq M, Sq Yd, Sq Km, Acre, Hectare)
 - **🌐 Localization**: Full English and Hindi support
 - **🔐 Authentication**: Firebase Auth with email/password and Google Sign-In
 

@@ -60,7 +60,7 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
   void initState() {
     super.initState();
     _initializeLocation();
-    AdManager().loadRewardedAd();
+    AdManager().loadInterstitialAd();
   }
 
   Future<void> _initializeLocation() async {
@@ -147,11 +147,8 @@ class _BoundaryMarkingScreenState extends ConsumerState<BoundaryMarkingScreen>
         return;
       }
 
-      // Show rewarded ad before calculating
-      AdManager().showRewardedAd(
-        onUserEarnedReward: () {
-          // Reward earned, navigation happens on dismiss
-        },
+      // Show interstitial ad before calculating
+      AdManager().showInterstitialAd(
         onAdDismissed: () {
           _performCalculation(points);
         },

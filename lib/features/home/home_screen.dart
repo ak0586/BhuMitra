@@ -30,7 +30,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     _initializeLocation();
     _loadAds();
-    AdManager().loadRewardedAd();
+    AdManager().loadInterstitialAd();
   }
 
   Future<void> _handleLogout(BuildContext context, WidgetRef ref) async {
@@ -474,10 +474,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
           if (_isBannerAdLoaded && _bannerAd != null)
-            SizedBox(
-              height: _bannerAd!.size.height.toDouble(),
-              width: _bannerAd!.size.width.toDouble(),
-              child: AdWidget(ad: _bannerAd!),
+            SafeArea(
+              child: SizedBox(
+                height: _bannerAd!.size.height.toDouble(),
+                width: _bannerAd!.size.width.toDouble(),
+                child: AdWidget(ad: _bannerAd!),
+              ),
             ),
         ],
       ),
@@ -570,10 +572,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-                AdManager().showRewardedAd(
-                  onUserEarnedReward: () {
-                    // Reward earned, navigation happens on dismiss
-                  },
+                AdManager().showInterstitialAd(
                   onAdDismissed: () {
                     if (context.mounted) {
                       context.push('/boundary');

@@ -9,8 +9,6 @@ class AdManager {
   factory AdManager() => _instance;
   AdManager._internal();
 
-  RewardedAd? _rewardedAd;
-  int _numRewardedLoadAttempts = 0;
   InterstitialAd? _interstitialAd;
   int _numInterstitialLoadAttempts = 0;
   final int maxFailedLoadAttempts = 3;
@@ -40,26 +38,14 @@ class AdManager {
     throw UnsupportedError("Unsupported platform");
   }
 
-  String get rewardedAdUnitId {
-    if (Platform.isAndroid) {
-      return dotenv.env['ANDROID_REWARDED_AD_UNIT_ID'] ??
-          dotenv.env['rewarded_ad'] ??
-          'ca-app-pub-3940256099942544/5224354917';
-    } else if (Platform.isIOS) {
-      return dotenv.env['IOS_REWARDED_AD_UNIT_ID'] ??
-          'ca-app-pub-3940256099942544/1712485313';
-    }
-    throw UnsupportedError("Unsupported platform");
-  }
-
   String get interstitialAdUnitId {
     if (Platform.isAndroid) {
       return dotenv.env['ANDROID_INTERSTITIAL_AD_UNIT_ID'] ??
           dotenv.env['interstitial_ad'] ??
-          'ca-app-pub-3940256099942544/1033173712';
+          'ca-app-pub-7846790707867237/4224112545'; // Production ID
     } else if (Platform.isIOS) {
       return dotenv.env['IOS_INTERSTITIAL_AD_UNIT_ID'] ??
-          'ca-app-pub-3940256099942544/4411468910';
+          'ca-app-pub-3940256099942544/4411468910'; // Test ID for iOS
     }
     throw UnsupportedError("Unsupported platform");
   }
@@ -127,83 +113,6 @@ class AdManager {
         ),
       ),
     )..load();
-  }
-
-  void loadRewardedAd() {
-    RewardedAd.load(
-      adUnitId: rewardedAdUnitId,
-      request: const AdRequest(),
-      rewardedAdLoadCallback: RewardedAdLoadCallback(
-        onAdLoaded: (RewardedAd ad) {
-          if (kDebugMode) {
-            print('$ad loaded.');
-          }
-          _rewardedAd = ad;
-          _numRewardedLoadAttempts = 0;
-        },
-        onAdFailedToLoad: (LoadAdError error) {
-          if (kDebugMode) {
-            print('RewardedAd failed to load: $error');
-          }
-          _rewardedAd = null;
-          _numRewardedLoadAttempts += 1;
-          if (_numRewardedLoadAttempts < maxFailedLoadAttempts) {
-            loadRewardedAd();
-          }
-        },
-      ),
-    );
-  }
-
-  void showRewardedAd({
-    required VoidCallback onUserEarnedReward,
-    VoidCallback? onAdDismissed,
-  }) {
-    if (_rewardedAd == null) {
-      if (kDebugMode) {
-        print('Warning: attempt to show rewarded ad before loaded.');
-      }
-      loadRewardedAd(); // Try loading for next time
-      onAdDismissed?.call(); // Fallback: let user proceed if ad isn't ready
-      return;
-    }
-
-    _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
-      onAdShowedFullScreenContent: (RewardedAd ad) {
-        if (kDebugMode) {
-          print('ad onAdShowedFullScreenContent.');
-        }
-      },
-      onAdDismissedFullScreenContent: (RewardedAd ad) {
-        if (kDebugMode) {
-          print('$ad onAdDismissedFullScreenContent.');
-        }
-        ad.dispose();
-        loadRewardedAd(); // Preload next one
-        onAdDismissed?.call();
-      },
-      onAdFailedToShowFullScreenContent: (RewardedAd ad, AdError error) {
-        if (kDebugMode) {
-          print('$ad onAdFailedToShowFullScreenContent: $error');
-        }
-        ad.dispose();
-        loadRewardedAd(); // Preload next one
-        onAdDismissed?.call(); // Fallback
-      },
-    );
-
-    _rewardedAd!.setImmersiveMode(true);
-    _rewardedAd!.show(
-      onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
-        if (kDebugMode) {
-          print(
-            '$ad with reward $RewardItem(${reward.amount}, ${reward.type})',
-          );
-        }
-        onUserEarnedReward();
-      },
-    );
-    _rewardedAd = null;
   }
 
   void loadInterstitialAd() {

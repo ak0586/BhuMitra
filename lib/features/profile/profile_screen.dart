@@ -350,10 +350,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ),
           if (_isBannerAdLoaded && _bannerAd != null)
-            SizedBox(
-              height: _bannerAd!.size.height.toDouble(),
-              width: _bannerAd!.size.width.toDouble(),
-              child: AdWidget(ad: _bannerAd!),
+            SafeArea(
+              child: SizedBox(
+                height: _bannerAd!.size.height.toDouble(),
+                width: _bannerAd!.size.width.toDouble(),
+                child: AdWidget(ad: _bannerAd!),
+              ),
             ),
         ],
       ),

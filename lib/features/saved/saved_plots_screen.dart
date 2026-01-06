@@ -78,7 +78,7 @@ class _SavedPlotsScreenState extends ConsumerState<SavedPlotsScreen> {
     Future.microtask(() => ref.read(savedPlotsProvider.notifier).loadPlots());
     _loadBannerAd();
     _loadNativeAd();
-    AdManager().loadRewardedAd();
+    AdManager().loadInterstitialAd();
   }
 
   @override
@@ -896,10 +896,7 @@ class _PlotCard extends ConsumerWidget {
               Expanded(
                 child: TextButton.icon(
                   onPressed: () {
-                    AdManager().showRewardedAd(
-                      onUserEarnedReward: () {
-                        // Logic on dismiss
-                      },
+                    AdManager().showInterstitialAd(
                       onAdDismissed: () {
                         _sharePlot(context, ref);
                       },
@@ -967,57 +964,80 @@ class _MapThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (coordinates.isEmpty) {
+    if (coordinates.isEmpty || coordinates.length < 2) {
       return Container(
         color: Colors.grey[200],
         child: const Icon(Icons.map, color: Colors.grey),
       );
     }
 
-    final points = coordinates.map((c) => LatLng(c[0], c[1])).toList();
+    try {
+      final points = coordinates.map((c) => LatLng(c[0], c[1])).toList();
 
-    // Calculate bounds manually since we accept List<List<double>>
-    double minLat = coordinates[0][0];
-    double maxLat = coordinates[0][0];
-    double minLon = coordinates[0][1];
-    double maxLon = coordinates[0][1];
+      // Calculate bounds manually since we accept List<List<double>>
+      double minLat = coordinates[0][0];
+      double maxLat = coordinates[0][0];
+      double minLon = coordinates[0][1];
+      double maxLon = coordinates[0][1];
 
-    for (var coord in coordinates) {
-      if (coord[0] < minLat) minLat = coord[0];
-      if (coord[0] > maxLat) maxLat = coord[0];
-      if (coord[1] < minLon) minLon = coord[1];
-      if (coord[1] > maxLon) maxLon = coord[1];
+      for (var coord in coordinates) {
+        if (coord[0] < minLat) minLat = coord[0];
+        if (coord[0] > maxLat) maxLat = coord[0];
+        if (coord[1] < minLon) minLon = coord[1];
+        if (coord[1] > maxLon) maxLon = coord[1];
+      }
+
+      // Check if bounds are valid (not a single point)
+      final latRange = maxLat - minLat;
+      final lonRange = maxLon - minLon;
+
+      if (latRange == 0 && lonRange == 0) {
+        // Single point - add small padding
+        minLat -= 0.001;
+        maxLat += 0.001;
+        minLon -= 0.001;
+        maxLon += 0.001;
+      }
+
+      final bounds = LatLngBounds(
+        LatLng(minLat, minLon),
+        LatLng(maxLat, maxLon),
+      );
+
+      return FlutterMap(
+        options: MapOptions(
+          initialCameraFit: CameraFit.bounds(
+            bounds: bounds,
+            padding: const EdgeInsets.all(10),
+          ),
+          interactionOptions: const InteractionOptions(
+            flags: InteractiveFlag.none,
+          ),
+        ),
+        children: [
+          TileLayer(
+            urlTemplate: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+            userAgentPackageName: 'com.bhumitra.app',
+          ),
+          PolygonLayer(
+            polygons: [
+              Polygon(
+                points: points,
+                color: const Color(0xFF66BB6A).withOpacity(0.5),
+                borderColor: const Color(0xFF2E7D32),
+                borderStrokeWidth: 2,
+                isFilled: true,
+              ),
+            ],
+          ),
+        ],
+      );
+    } catch (e) {
+      // Fallback to icon if map fails to render
+      return Container(
+        color: Colors.grey[200],
+        child: const Icon(Icons.map_outlined, color: Colors.grey),
+      );
     }
-
-    final bounds = LatLngBounds(LatLng(minLat, minLon), LatLng(maxLat, maxLon));
-
-    return FlutterMap(
-      options: MapOptions(
-        initialCameraFit: CameraFit.bounds(
-          bounds: bounds,
-          padding: const EdgeInsets.all(10), // Add padding
-        ),
-        interactionOptions: const InteractionOptions(
-          flags: InteractiveFlag.none,
-        ),
-      ),
-      children: [
-        TileLayer(
-          urlTemplate: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
-          userAgentPackageName: 'com.bhumitra.app',
-        ),
-        PolygonLayer(
-          polygons: [
-            Polygon(
-              points: points,
-              color: const Color(0xFF66BB6A).withOpacity(0.5),
-              borderColor: const Color(0xFF2E7D32),
-              borderStrokeWidth: 2,
-              isFilled: true,
-            ),
-          ],
-        ),
-      ],
-    );
   }
 }

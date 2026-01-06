@@ -69,8 +69,11 @@ void main() async {
     );
   }
 
-  // Initialize Mobile Ads SDK
-  await AdManager().initialize();
+  // Initialize Mobile Ads SDK in background (non-blocking)
+  AdManager().initialize().then((_) {
+    // Preload interstitial ad after AdMob is ready
+    AdManager().loadInterstitialAd();
+  });
 
   // Bypass reCAPTCHA/App Check for testing (ONLY in Debug mode)
   if (kDebugMode) {
